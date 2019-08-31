@@ -52,10 +52,10 @@ void show_bgp4mp_common(void *p) {
   uint16_t afi = getw16(p + 10);
   uint32_t peer_ip = getw32(p + 12);
   uint32_t local_ip = getw32(p + 16);
-  printf("bgp4mp_common peer_as=%d local_as=%d if_index=%d afi=%d peer_ip=%s "
-         "local_ip=%s\n",
-         peer_as, local_as, if_index, afi, inet_ntoa((struct in_addr){peer_ip}),
-         inet_ntoa((struct in_addr){local_ip}));
+  printf("bgp4mp_common peer_as=%d local_as=%d if_index=%d afi=%d peer_ip=%s ",
+         peer_as, local_as, if_index, afi,
+         inet_ntoa((struct in_addr){peer_ip}));
+  printf("local_ip=%s\n", inet_ntoa((struct in_addr){local_ip}));
 };
 
 struct msg_list_item *mrt_parse(struct chunk buf) {
@@ -66,6 +66,7 @@ struct msg_list_item *mrt_parse(struct chunk buf) {
   uint32_t msg_length, msg_timestamp;
   int msg_index = 0;
   int as2_discards = 0;
+  int ipv6_discards = 0;
   int messages = 0;
   int state_changes = 0;
 
@@ -79,7 +80,13 @@ struct msg_list_item *mrt_parse(struct chunk buf) {
       printf("wrong msg_type %d/%d\n", msg_type, msg_subtype);
       exit(1);
     };
-    if (msg_subtype == BGP4MP_MESSAGE_AS4) {
+    // BGP4MP -> the AFI is at a fixed offset in all subtypes
+    uint16_t afi = getw16(buf.data + MIN_MRT_LENGTH + 10);
+    if (1 != afi) { // IPv6 is 2....
+      ipv6_discards++;
+      if (1 == ipv6_discards)
+        printf("discard IPv6 BGP4MP ITEM at msg %d\n", msg_index);
+    } else if (msg_subtype == BGP4MP_MESSAGE_AS4) {
       messages++;
       next = calloc(1, sizeof(struct msg_list_item));
       (next->msg).data = buf.data + MIN_MRT_LENGTH + 20;
@@ -114,6 +121,8 @@ struct msg_list_item *mrt_parse(struct chunk buf) {
   };
   printf("got %d MRT items\n", msg_index);
   printf("    %d messages, %d state changes\n", messages, state_changes);
+  if (0 < ipv6_discards)
+    printf("    discarded %d IPv6 items\n", ipv6_discards);
   if (0 < as2_discards)
     printf("    discarded %d AS2 items\n", as2_discards);
   return head;
