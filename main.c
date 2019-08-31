@@ -1,6 +1,7 @@
 #include "stdint.h"
 #include "stdio.h"
 #include "stdlib.h"
+#include <arpa/inet.h>
 #include <assert.h>
 #include <fcntl.h>
 #include <sys/mman.h>
@@ -44,6 +45,19 @@ struct chunk map_mrt_file(char *fname) {
   return (struct chunk){buf, sb.st_size};
 };
 
+void show_bgp4mp_common(void *p) {
+  uint32_t peer_as = getw32(p + 0);
+  uint32_t local_as = getw32(p + 4);
+  uint16_t if_index = getw16(p + 8);
+  uint16_t afi = getw16(p + 10);
+  uint32_t peer_ip = getw32(p + 12);
+  uint32_t local_ip = getw32(p + 16);
+  printf("bgp4mp_common peer_as=%d local_as=%d if_index=%d afi=%d peer_ip=%s "
+         "local_ip=%s\n",
+         peer_as, local_as, if_index, afi, inet_ntoa((struct in_addr){peer_ip}),
+         inet_ntoa((struct in_addr){local_ip}));
+};
+
 struct msg_list_item *mrt_parse(struct chunk buf) {
   struct msg_list_item *next, *current, *head;
   head = NULL;
@@ -78,9 +92,10 @@ struct msg_list_item *mrt_parse(struct chunk buf) {
       current = next;
     } else if (msg_subtype == BGP4MP_STATE_CHANGE_AS4) {
       state_changes++;
-      uint16_t old_state = getw16(buf.data + MIN_MRT_LENGTH + 16);
-      uint16_t new_state = getw16(buf.data + MIN_MRT_LENGTH + 18);
-      printf("state change %d -> %d\n", old_state, new_state);
+      uint16_t old_state = getw16(buf.data + MIN_MRT_LENGTH + 20);
+      uint16_t new_state = getw16(buf.data + MIN_MRT_LENGTH + 22);
+      show_bgp4mp_common(buf.data + MIN_MRT_LENGTH);
+      printf("state change %d -> %d at %d\n", old_state, new_state, msg_index);
     } else if (msg_subtype == BGP4MP_MESSAGE) {
       as2_discards++;
       if (1 == as2_discards)
