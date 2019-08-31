@@ -101,8 +101,9 @@ struct msg_list_item *mrt_parse(struct chunk buf) {
       state_changes++;
       uint16_t old_state = getw16(buf.data + MIN_MRT_LENGTH + 20);
       uint16_t new_state = getw16(buf.data + MIN_MRT_LENGTH + 22);
-      show_bgp4mp_common(buf.data + MIN_MRT_LENGTH);
-      printf("state change %d -> %d at %d\n", old_state, new_state, msg_index);
+      // show_bgp4mp_common(buf.data + MIN_MRT_LENGTH);
+      // printf("state change %d -> %d at %d\n", old_state, new_state,
+      // msg_index);
     } else if (msg_subtype == BGP4MP_MESSAGE) {
       as2_discards++;
       if (1 == as2_discards)
@@ -128,9 +129,63 @@ struct msg_list_item *mrt_parse(struct chunk buf) {
   return head;
 };
 
+int open_count = 0;
+int update_count = 0;
+int eor_count = 0;
+int keepalive_count = 0;
+int notification_count = 0;
+int withdraw_count = 0;
+int mixed_update_count = 0;
+
+int process_update(struct chunk msg){};
+
+int process_bgp_message(struct chunk msg) {
+  assert(18 < msg.length);
+  uint16_t length = getw16(msg.data + 16);
+  uint8_t typecode = *(uint8_t *)(msg.data + 18);
+  int is_update = 0;
+  switch (typecode) {
+  case 1:
+    open_count++;
+    break;
+  case 2: // Update cases - EOR/Withdraw/Update
+    if (23 == length)
+      eor_count++;
+    else {
+      uint16_t withdraw_length = getw16(msg.data + 19);
+      // simple update
+      if (0 == withdraw_length) {
+        process_update(msg);
+        update_count++;
+        is_update = 1;
+        // combined withdraw and update
+      } else if (length != 23 + withdraw_length) {
+        // printf("*** length=%d withdraw_length=%d\n", length,
+        // withdraw_length);
+        mixed_update_count++;
+        // simple withdraw
+      } else
+        withdraw_count++;
+    };
+    break;
+  case 3:
+    notification_count++;
+    break;
+  case 4:
+    keepalive_count++;
+    break;
+  default:
+    printf("invalid typecode %d\n", typecode);
+    exit(1);
+  };
+  return is_update;
+};
+
 void use_msgs(char *fname, struct msg_list_item *list) {
   int i = 0;
   while (list != NULL) {
+    if (process_bgp_message(list->msg))
+      ;
     i++;
     list = list->next;
   };
@@ -147,4 +202,12 @@ int main(int argc, char **argv) {
     msg_list = mrt_parse(buf);
     use_msgs(argv[i], msg_list);
   };
+  printf("\nBGP Message Statistics\n\n");
+  printf("Opens %d\n", open_count);
+  printf("Updates %d\n", update_count);
+  printf("Withdraws %d\n", withdraw_count);
+  printf("Mixed Updates %d\n", mixed_update_count);
+  printf("End-of-RIB %d\n", eor_count);
+  printf("Notifications %d\n", notification_count);
+  printf("Keepalives %d\n", keepalive_count);
 };
