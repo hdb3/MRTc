@@ -115,6 +115,7 @@ struct msg_list_item *mrt_parse(struct chunk buf, struct stats_bgp4mp *sp) {
         show_bgp4mp_common(buf.data + MIN_MRT_LENGTH);
         pn = peers - 1;
       };
+
       if (msg_subtype == BGP4MP_MESSAGE_AS4) {
         sp->bgp_messages++;
         next = calloc(1, sizeof(struct msg_list_item));
@@ -141,10 +142,10 @@ struct msg_list_item *mrt_parse(struct chunk buf, struct stats_bgp4mp *sp) {
         printf("wrong msg_subtype %d at msg %d\n", msg_subtype, sp->mrt_count);
         // exit(1);
       };
-      buf.data += MIN_MRT_LENGTH + msg_length;
-      buf.length -= MIN_MRT_LENGTH + msg_length;
-      sp->mrt_count++;
     };
+    buf.data += MIN_MRT_LENGTH + msg_length;
+    buf.length -= MIN_MRT_LENGTH + msg_length;
+    sp->mrt_count++;
   };
   return head;
 };
