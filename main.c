@@ -17,7 +17,14 @@
 #define BGP4MP_STATE_CHANGE_AS4 5
 
 struct stats_bgp4mp {
+  // MRT parse level
   int mrt_count;
+  int bgp_messages;
+  int state_changes;
+  int as2_discards;
+  int ipv6_discards;
+
+  // bgp parse level
   int open_count;
   int update_count;
   int eor_count;
@@ -25,18 +32,12 @@ struct stats_bgp4mp {
   int notification_count;
   int withdraw_count;
   int mixed_update_count;
-  int as2_discards;
-  int ipv6_discards;
-  int messages;
-  int state_changes;
 };
 
-static struct stats_bgp4mp *sp = NULL;
-
-void report_stats_bgp4mp() {
+void report_stats_bgp4mp(struct stats_bgp4mp *sp) {
   printf("\nMRT Record Statistics\n\n");
   printf("got %d MRT items\n", sp->mrt_count);
-  printf("    %d messages, %d state changes\n", sp->messages,
+  printf("    %d messages, %d state changes\n", sp->bgp_messages,
          sp->state_changes);
   if (0 < sp->ipv6_discards)
     printf("    discarded %d IPv6 items\n", sp->ipv6_discards);
@@ -96,7 +97,7 @@ void show_bgp4mp_common(void *p) {
   printf("local_ip=%s\n", inet_ntoa((struct in_addr){local_ip}));
 };
 
-struct msg_list_item *mrt_parse(struct chunk buf) {
+struct msg_list_item *mrt_parse(struct chunk buf, struct stats_bgp4mp *sp) {
   struct msg_list_item *next, *current, *head;
   head = NULL;
   struct chunk bgp_msg;
@@ -118,7 +119,7 @@ struct msg_list_item *mrt_parse(struct chunk buf) {
     if (1 != afi) { // IPv6 is 2....
       sp->ipv6_discards++;
     } else if (msg_subtype == BGP4MP_MESSAGE_AS4) {
-      sp->messages++;
+      sp->bgp_messages++;
       next = calloc(1, sizeof(struct msg_list_item));
       (next->msg).data = buf.data + MIN_MRT_LENGTH + 20;
       (next->msg).length = msg_length - MIN_MRT_LENGTH;
@@ -152,7 +153,7 @@ struct msg_list_item *mrt_parse(struct chunk buf) {
 
 int process_update(struct chunk msg){};
 
-int process_bgp_message(struct chunk msg) {
+int process_bgp_message(struct chunk msg, struct stats_bgp4mp *sp) {
   assert(18 < msg.length);
   uint16_t length = getw16(msg.data + 16);
   uint8_t typecode = *(uint8_t *)(msg.data + 18);
@@ -206,7 +207,8 @@ void use_msgs(char *fname, struct msg_list_item *list) {
   printf("got %d messages from %s\n", i, fname);
 };
 
-struct msg_list_item *filter_msgs(struct msg_list_item *list) {
+struct msg_list_item *filter_msgs(struct msg_list_item *list,
+                                  struct stats_bgp4mp *sp) {
   // filter list of non-compliant chunks based on process_bgp_message return
   // value builds a new list with a dummy head, which is discarded on exit
   struct msg_list_item head = {NULL, (struct chunk){NULL, 0}};
@@ -214,7 +216,7 @@ struct msg_list_item *filter_msgs(struct msg_list_item *list) {
   struct msg_list_item *next;
   while (list != NULL) {
     next = list->next;
-    if (process_bgp_message(list->msg)) {
+    if (process_bgp_message(list->msg, sp)) {
       last->next = list;
       last = list;
     } else {
@@ -232,13 +234,14 @@ int main(int argc, char **argv) {
   struct chunk buf;
   struct msg_list_item *msg_list;
   printf("MRTc\n");
-  sp = calloc(1, sizeof(*sp));
+  struct stats_bgp4mp *sp = calloc(1, sizeof(*sp));
+
   for (i = 1; i < argc; i++) {
     buf = map_mrt_file(argv[i]);
-    msg_list = mrt_parse(buf);
+    msg_list = mrt_parse(buf, sp);
     use_msgs(argv[i], msg_list);
-    msg_list = filter_msgs(msg_list);
+    msg_list = filter_msgs(msg_list, sp);
     use_msgs("filter", msg_list);
   };
-  report_stats_bgp4mp();
+  report_stats_bgp4mp(sp);
 };
