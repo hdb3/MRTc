@@ -1,4 +1,5 @@
-
+#include <stdint.h>
+#define LENGTH_BGP4MP_COMMON_AS4 20
 #define MIN_MRT_LENGTH 12
 #define BGP4MP 16
 #define BGP4MP_STATE_CHANGE 0
@@ -41,4 +42,12 @@ struct chunk map_mrt_file(char *fname);
 struct msg_list_item *mrt_parse(struct chunk buf, struct stats_bgp4mp *sp);
 
 int count_msg_list(struct msg_list_item *list);
-struct msg_list_item *filter_msgs(struct msg_list_item *list, struct stats_bgp4mp *sp);
+struct msg_list_item *filter_msgs(struct msg_list_item *list,
+                                  struct stats_bgp4mp *sp);
+
+struct peer {
+  uint32_t peer_as;
+  uint32_t local_as;
+  uint32_t peer_ip;
+  uint32_t local_ip;
+};

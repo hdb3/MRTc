@@ -1,9 +1,10 @@
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <arpa/inet.h>
 #include <assert.h>
 #include <fcntl.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -70,6 +71,9 @@ struct msg_list_item *mrt_parse(struct chunk buf, struct stats_bgp4mp *sp) {
   struct chunk bgp_msg;
   uint16_t msg_type, msg_subtype;
   uint32_t msg_length, msg_timestamp;
+  void *ppeers = NULL;
+  int peers = 0;
+  int found, pn;
 
   while (buf.length >= MIN_MRT_LENGTH) {
     msg_timestamp = getw32(buf.data + 0);
@@ -83,37 +87,64 @@ struct msg_list_item *mrt_parse(struct chunk buf, struct stats_bgp4mp *sp) {
     };
     // BGP4MP -> the AFI is at a fixed offset in all subtypes
     uint16_t afi = getw16(buf.data + MIN_MRT_LENGTH + 10);
-    if (1 != afi) { // IPv6 is 2....
+    if (1 != afi) // IPv6 is 2....
       sp->ipv6_discards++;
-    } else if (msg_subtype == BGP4MP_MESSAGE_AS4) {
-      sp->bgp_messages++;
-      next = calloc(1, sizeof(struct msg_list_item));
-      (next->msg).data = buf.data + MIN_MRT_LENGTH + 20;
-      (next->msg).length = msg_length - MIN_MRT_LENGTH;
-      if (NULL == head) {
-        head = next;
+    else { // lookup the bgp4mp common header in the raw peer table
+      found = 0;
+      for (pn = 0; pn < peers; pn++)
+        if (0 == memcmp(buf.data + MIN_MRT_LENGTH,
+                        ppeers + pn * LENGTH_BGP4MP_COMMON_AS4,
+                        LENGTH_BGP4MP_COMMON_AS4)) {
+          found = 1;
+          break;
+        };
+      // on exit either found==0 or found==1 and pn is the index in the currrent
+      // table if found==0 we should make a new entry in the raw table by
+      // (re-)allocating space and copying the bgp4mp common header to it
+      //
+      // create a new raw peer entry if either
+      //   - this is the first entry
+      //   - the current peer is not found in the existing table
+
+      if (0 == found) {
+        peers++;
+        ppeers = realloc(ppeers, peers * LENGTH_BGP4MP_COMMON_AS4);
+        memcpy(ppeers + (peers - 1) * LENGTH_BGP4MP_COMMON_AS4,
+               buf.data + MIN_MRT_LENGTH, LENGTH_BGP4MP_COMMON_AS4);
+        printf("new peer added,number %d\n", peers);
+        show_bgp4mp_common(buf.data + MIN_MRT_LENGTH);
+        pn = peers - 1;
+      };
+      if (msg_subtype == BGP4MP_MESSAGE_AS4) {
+        sp->bgp_messages++;
+        next = calloc(1, sizeof(struct msg_list_item));
+        (next->msg).data = buf.data + MIN_MRT_LENGTH + 20;
+        (next->msg).length = msg_length - MIN_MRT_LENGTH;
+        if (NULL == head) {
+          head = next;
+        } else {
+          current->next = next;
+        }
+        current = next;
+      } else if (msg_subtype == BGP4MP_STATE_CHANGE_AS4) {
+        sp->state_changes++;
+        uint16_t old_state = getw16(buf.data + MIN_MRT_LENGTH + 20);
+        uint16_t new_state = getw16(buf.data + MIN_MRT_LENGTH + 22);
+        // show_bgp4mp_common(buf.data + MIN_MRT_LENGTH);
+        // printf("state change %d -> %d at %d\n", old_state, new_state,
+        // sp->mrt_count);
+      } else if (msg_subtype == BGP4MP_MESSAGE) {
+        sp->as2_discards++;
+      } else if (msg_subtype == BGP4MP_STATE_CHANGE) {
+        sp->as2_discards++;
       } else {
-        current->next = next;
-      }
-      current = next;
-    } else if (msg_subtype == BGP4MP_STATE_CHANGE_AS4) {
-      sp->state_changes++;
-      uint16_t old_state = getw16(buf.data + MIN_MRT_LENGTH + 20);
-      uint16_t new_state = getw16(buf.data + MIN_MRT_LENGTH + 22);
-      // show_bgp4mp_common(buf.data + MIN_MRT_LENGTH);
-      // printf("state change %d -> %d at %d\n", old_state, new_state,
-      // sp->mrt_count);
-    } else if (msg_subtype == BGP4MP_MESSAGE) {
-      sp->as2_discards++;
-    } else if (msg_subtype == BGP4MP_STATE_CHANGE) {
-      sp->as2_discards++;
-    } else {
-      printf("wrong msg_subtype %d at msg %d\n", msg_subtype, sp->mrt_count);
-      // exit(1);
+        printf("wrong msg_subtype %d at msg %d\n", msg_subtype, sp->mrt_count);
+        // exit(1);
+      };
+      buf.data += MIN_MRT_LENGTH + msg_length;
+      buf.length -= MIN_MRT_LENGTH + msg_length;
+      sp->mrt_count++;
     };
-    buf.data += MIN_MRT_LENGTH + msg_length;
-    buf.length -= MIN_MRT_LENGTH + msg_length;
-    sp->mrt_count++;
   };
   return head;
 };

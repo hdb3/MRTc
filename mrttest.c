@@ -1,6 +1,6 @@
+#include "libmrt.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include "libmrt.h"
 
 int main(int argc, char **argv) {
   int i;
