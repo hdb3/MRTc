@@ -16,6 +16,43 @@
 #define BGP4MP_MESSAGE_AS4 4
 #define BGP4MP_STATE_CHANGE_AS4 5
 
+struct stats_bgp4mp {
+  int mrt_count;
+  int open_count;
+  int update_count;
+  int eor_count;
+  int keepalive_count;
+  int notification_count;
+  int withdraw_count;
+  int mixed_update_count;
+  int as2_discards;
+  int ipv6_discards;
+  int messages;
+  int state_changes;
+};
+
+static struct stats_bgp4mp *sp = NULL;
+
+void report_stats_bgp4mp() {
+  printf("\nMRT Record Statistics\n\n");
+  printf("got %d MRT items\n", sp->mrt_count);
+  printf("    %d messages, %d state changes\n", sp->messages,
+         sp->state_changes);
+  if (0 < sp->ipv6_discards)
+    printf("    discarded %d IPv6 items\n", sp->ipv6_discards);
+  if (0 < sp->as2_discards)
+    printf("    discarded %d AS2 items\n", sp->as2_discards);
+
+  printf("\nBGP Message Statistics\n\n");
+  printf("Opens %d\n", sp->open_count);
+  printf("Updates %d\n", sp->update_count);
+  printf("Withdraws %d\n", sp->withdraw_count);
+  printf("Mixed Updates %d\n", sp->mixed_update_count);
+  printf("End-of-RIB %d\n", sp->eor_count);
+  printf("Notifications %d\n", sp->notification_count);
+  printf("Keepalives %d\n", sp->keepalive_count);
+};
+
 static inline uint16_t getw16(void *p) { return __bswap_16(*(uint16_t *)p); };
 
 static inline uint32_t getw32(void *p) { return __bswap_32(*(uint32_t *)p); };
@@ -65,11 +102,6 @@ struct msg_list_item *mrt_parse(struct chunk buf) {
   struct chunk bgp_msg;
   uint16_t msg_type, msg_subtype;
   uint32_t msg_length, msg_timestamp;
-  int msg_index = 0;
-  int as2_discards = 0;
-  int ipv6_discards = 0;
-  int messages = 0;
-  int state_changes = 0;
 
   while (buf.length >= MIN_MRT_LENGTH) {
     msg_timestamp = getw32(buf.data + 0);
@@ -84,9 +116,9 @@ struct msg_list_item *mrt_parse(struct chunk buf) {
     // BGP4MP -> the AFI is at a fixed offset in all subtypes
     uint16_t afi = getw16(buf.data + MIN_MRT_LENGTH + 10);
     if (1 != afi) { // IPv6 is 2....
-      ipv6_discards++;
+      sp->ipv6_discards++;
     } else if (msg_subtype == BGP4MP_MESSAGE_AS4) {
-      messages++;
+      sp->messages++;
       next = calloc(1, sizeof(struct msg_list_item));
       (next->msg).data = buf.data + MIN_MRT_LENGTH + 20;
       (next->msg).length = msg_length - MIN_MRT_LENGTH;
@@ -97,40 +129,26 @@ struct msg_list_item *mrt_parse(struct chunk buf) {
       }
       current = next;
     } else if (msg_subtype == BGP4MP_STATE_CHANGE_AS4) {
-      state_changes++;
+      sp->state_changes++;
       uint16_t old_state = getw16(buf.data + MIN_MRT_LENGTH + 20);
       uint16_t new_state = getw16(buf.data + MIN_MRT_LENGTH + 22);
       // show_bgp4mp_common(buf.data + MIN_MRT_LENGTH);
       // printf("state change %d -> %d at %d\n", old_state, new_state,
-      // msg_index);
+      // sp->mrt_count);
     } else if (msg_subtype == BGP4MP_MESSAGE) {
-      as2_discards++;
+      sp->as2_discards++;
     } else if (msg_subtype == BGP4MP_STATE_CHANGE) {
-      as2_discards++;
+      sp->as2_discards++;
     } else {
-      printf("wrong msg_subtype %d at msg %d\n", msg_subtype, msg_index);
+      printf("wrong msg_subtype %d at msg %d\n", msg_subtype, sp->mrt_count);
       // exit(1);
     };
     buf.data += MIN_MRT_LENGTH + msg_length;
     buf.length -= MIN_MRT_LENGTH + msg_length;
-    msg_index++;
+    sp->mrt_count++;
   };
-  printf("got %d MRT items\n", msg_index);
-  printf("    %d messages, %d state changes\n", messages, state_changes);
-  if (0 < ipv6_discards)
-    printf("    discarded %d IPv6 items\n", ipv6_discards);
-  if (0 < as2_discards)
-    printf("    discarded %d AS2 items\n", as2_discards);
   return head;
 };
-
-int open_count = 0;
-int update_count = 0;
-int eor_count = 0;
-int keepalive_count = 0;
-int notification_count = 0;
-int withdraw_count = 0;
-int mixed_update_count = 0;
 
 int process_update(struct chunk msg){};
 
@@ -141,33 +159,33 @@ int process_bgp_message(struct chunk msg) {
   int is_update = 0;
   switch (typecode) {
   case 1:
-    open_count++;
+    sp->open_count++;
     break;
   case 2: // Update cases - EOR/Withdraw/Update
     if (23 == length)
-      eor_count++;
+      sp->eor_count++;
     else {
       uint16_t withdraw_length = getw16(msg.data + 19);
       // simple update
       if (0 == withdraw_length) {
         process_update(msg);
-        update_count++;
+        sp->update_count++;
         is_update = 1;
         // combined withdraw and update
       } else if (length != 23 + withdraw_length) {
         // printf("*** length=%d withdraw_length=%d\n", length,
         // withdraw_length);
-        mixed_update_count++;
+        sp->mixed_update_count++;
         // simple withdraw
       } else
-        withdraw_count++;
+        sp->withdraw_count++;
     };
     break;
   case 3:
-    notification_count++;
+    sp->notification_count++;
     break;
   case 4:
-    keepalive_count++;
+    sp->keepalive_count++;
     break;
   default:
     printf("invalid typecode %d\n", typecode);
@@ -214,6 +232,7 @@ int main(int argc, char **argv) {
   struct chunk buf;
   struct msg_list_item *msg_list;
   printf("MRTc\n");
+  sp = calloc(1, sizeof(*sp));
   for (i = 1; i < argc; i++) {
     buf = map_mrt_file(argv[i]);
     msg_list = mrt_parse(buf);
@@ -221,12 +240,5 @@ int main(int argc, char **argv) {
     msg_list = filter_msgs(msg_list);
     use_msgs("filter", msg_list);
   };
-  printf("\nBGP Message Statistics\n\n");
-  printf("Opens %d\n", open_count);
-  printf("Updates %d\n", update_count);
-  printf("Withdraws %d\n", withdraw_count);
-  printf("Mixed Updates %d\n", mixed_update_count);
-  printf("End-of-RIB %d\n", eor_count);
-  printf("Notifications %d\n", notification_count);
-  printf("Keepalives %d\n", keepalive_count);
+  report_stats_bgp4mp();
 };
