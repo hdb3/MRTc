@@ -37,10 +37,11 @@ struct chunk map_mrt_file(char *fname) {
   if (-1 == fd) {
     perror("file open error");
     exit(1);
-  } else {
-    fstat(fd, &sb);
-    buf = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
-  }
+  };
+
+  fstat(fd, &sb);
+  buf = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+  close(fd);
   printf("opened %s file size %ld\n", fname, sb.st_size);
   return (struct chunk){buf, sb.st_size};
 };
@@ -84,8 +85,6 @@ struct msg_list_item *mrt_parse(struct chunk buf) {
     uint16_t afi = getw16(buf.data + MIN_MRT_LENGTH + 10);
     if (1 != afi) { // IPv6 is 2....
       ipv6_discards++;
-      if (1 == ipv6_discards)
-        printf("discard IPv6 BGP4MP ITEM at msg %d\n", msg_index);
     } else if (msg_subtype == BGP4MP_MESSAGE_AS4) {
       messages++;
       next = calloc(1, sizeof(struct msg_list_item));
@@ -106,12 +105,8 @@ struct msg_list_item *mrt_parse(struct chunk buf) {
       // msg_index);
     } else if (msg_subtype == BGP4MP_MESSAGE) {
       as2_discards++;
-      if (1 == as2_discards)
-        printf("discard AS2 BGP4MP_MESSAGE at msg %d\n", msg_index);
     } else if (msg_subtype == BGP4MP_STATE_CHANGE) {
       as2_discards++;
-      if (1 == as2_discards)
-        printf("discard AS2 BGP4MP_STATE_CHANGE at msg %d\n", msg_index);
     } else {
       printf("wrong msg_subtype %d at msg %d\n", msg_subtype, msg_index);
       // exit(1);
@@ -183,24 +178,48 @@ int process_bgp_message(struct chunk msg) {
 
 void use_msgs(char *fname, struct msg_list_item *list) {
   int i = 0;
+
+  // simple list walk without list modification
   while (list != NULL) {
-    if (process_bgp_message(list->msg))
-      ;
+    // process_bgp_message(list->msg);
     i++;
     list = list->next;
   };
   printf("got %d messages from %s\n", i, fname);
 };
 
+struct msg_list_item *filter_msgs(struct msg_list_item *list) {
+  // filter list of non-compliant chunks based on process_bgp_message return
+  // value builds a new list with a dummy head, which is discarded on exit
+  struct msg_list_item head = {NULL, (struct chunk){NULL, 0}};
+  struct msg_list_item *last = &head;
+  struct msg_list_item *next;
+  while (list != NULL) {
+    next = list->next;
+    if (process_bgp_message(list->msg)) {
+      last->next = list;
+      last = list;
+    } else {
+      // the underlying chunk is not freed
+      // as it is part of the contiguous original file buffer!!!
+      free(list);
+    };
+    list = next;
+  };
+  return head.next;
+};
+
 int main(int argc, char **argv) {
   int i;
   struct chunk buf;
   struct msg_list_item *msg_list;
-  printf("hello cruel MRTc world\n");
+  printf("MRTc\n");
   for (i = 1; i < argc; i++) {
     buf = map_mrt_file(argv[i]);
     msg_list = mrt_parse(buf);
     use_msgs(argv[i], msg_list);
+    msg_list = filter_msgs(msg_list);
+    use_msgs("filter", msg_list);
   };
   printf("\nBGP Message Statistics\n\n");
   printf("Opens %d\n", open_count);
