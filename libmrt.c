@@ -59,10 +59,13 @@ void show_bgp4mp_common(void *p) {
   uint16_t afi = getw16(p + 10);
   uint32_t peer_ip = getw32(p + 12);
   uint32_t local_ip = getw32(p + 16);
-  printf("bgp4mp_common peer_as=%d local_as=%d if_index=%d afi=%d peer_ip=%s ",
-         peer_as, local_as, if_index, afi,
+  // printf("bgp4mp_common peer_as=%6d local_as=%6d if_index=%d afi=%d
+  // peer_ip=%s ",
+  printf("bgp4mp_common peer_as %-6d local_as %-6d peer_ip %-16s ", peer_as,
+         local_as,
+         // peer_as, local_as, if_index, afi,
          inet_ntoa((struct in_addr){peer_ip}));
-  printf("local_ip=%s\n", inet_ntoa((struct in_addr){local_ip}));
+  printf("local_ip %-16s\n", inet_ntoa((struct in_addr){local_ip}));
 };
 
 struct msg_list_item *mrt_parse(struct chunk buf, struct stats_bgp4mp *sp) {
@@ -111,7 +114,7 @@ struct msg_list_item *mrt_parse(struct chunk buf, struct stats_bgp4mp *sp) {
         ppeers = realloc(ppeers, peers * LENGTH_BGP4MP_COMMON_AS4);
         memcpy(ppeers + (peers - 1) * LENGTH_BGP4MP_COMMON_AS4,
                buf.data + MIN_MRT_LENGTH, LENGTH_BGP4MP_COMMON_AS4);
-        printf("new peer added,number %d\n", peers);
+        printf("new peer added,number %3d - ", peers);
         show_bgp4mp_common(buf.data + MIN_MRT_LENGTH);
         pn = peers - 1;
       };
