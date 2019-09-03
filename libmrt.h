@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stdlib.h>
 #define LENGTH_BGP4MP_COMMON_AS4 20
 #define MIN_MRT_LENGTH 12
 #define BGP4MP 16
@@ -36,6 +37,10 @@ struct msg_list_item {
   struct msg_list_item *next;
   struct chunk msg;
 };
+
+static inline uint16_t getw16(void *p) { return __bswap_16(*(uint16_t *)p); };
+
+static inline uint32_t getw32(void *p) { return __bswap_32(*(uint32_t *)p); };
 
 struct chunk map_mrt_file(char *fname);
 
