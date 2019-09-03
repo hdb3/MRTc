@@ -14,6 +14,10 @@
 #define TABLE_DUMP_V2 13
 #define PEER_INDEX_TABLE 1
 #define RIB_IPV4_UNICAST 2
+#define RIB_IPV4_MULTICAST 3
+#define RIB_IPV6_UNICAST 4
+#define RIB_IPV6_MULTICAST 5
+#define RIB_GENERIC 6
 
 struct stats_bgp4mp {
   // MRT parse level
