@@ -15,4 +15,5 @@ int main(int argc, char **argv) {
   pt = get_mrtrib_peertable(buf);
   report_mrtrib_peertable(pt);
   analyse_mrtrib_peertable(pt);
+  //sort_peertable(pt);
 };

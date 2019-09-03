@@ -14,6 +14,7 @@
 
 #define OFFSET_Peer_Count (MIN_MRT_LENGTH + 8)
 #define OFFSET_Peer_Entries (MIN_MRT_LENGTH + 10)
+#define N_LARGE_TABLE 500000
 
 struct mrtrib_ribentry {
   // struct mrtrib_ribentry *next;
@@ -22,6 +23,7 @@ struct mrtrib_ribentry {
 };
 
 struct mrtrib_peerrecord {
+  int index;
   uint32_t peer_as;
   uint32_t peer_ip;
   uint32_t peer_bgpid;
@@ -40,8 +42,31 @@ struct mrtrib_peertable {
 static uint16_t peer_count = 0;
 static struct mrtrib_peerrecord *peer_table;
 
+// there should be a simple cast over the function signature which
+// would alias the natural function, but I could not make it compile ;-(
+// int compare_mrtrib_peerrecord(struct mrtrib_peerrecord *a, struct mrtrib_peerrecord *b) {
+int compare_mrtrib_peerrecord(const void *a, const void *b) {
+  struct mrtrib_peerrecord *_a = (struct mrtrib_peerrecord *)a;
+  struct mrtrib_peerrecord *_b = (struct mrtrib_peerrecord *)b;
+  return (_b->entry_count - _a->entry_count);
+};
+
+void sort_peertable(struct mrtrib_peertable *pt) {
+  int i = 0;
+  for (i = 0; i < pt->peer_count; i++)
+    pt->peer_table[i].index = i;
+
+  qsort(pt->peer_table, pt->peer_count, sizeof(struct mrtrib_peerrecord), compare_mrtrib_peerrecord);
+  // for (i = 0; i < pt->peer_count; i++) {
+  // if (0 == pt->peer_table[i].entry_count)
+  // break;
+  // printf("%d %d %d\n", i, pt->peer_table[i].index, pt->peer_table[i].entry_count);
+  // };
+};
+
 void analyse_mrtrib_peertable(struct mrtrib_peertable *pt) {
   int i, max_entry_count, min_entry_count, non_zero_entry_counts, aggregate_counts;
+  int large_table_count = 0;
   printf("\nMRT RIB dump Peer Table\n\n");
   min_entry_count = peer_table[0].entry_count;
   max_entry_count = 0;
@@ -49,7 +74,7 @@ void analyse_mrtrib_peertable(struct mrtrib_peertable *pt) {
   non_zero_entry_counts = 0;
   for (i = 0; i < peer_count; i++) {
     if (0 < peer_table[i].entry_count) {
-      printf("%d - %d\n", i, peer_table[i].entry_count);
+      // printf("%d - %d\n", i, peer_table[i].entry_count);
       non_zero_entry_counts++;
       aggregate_counts += peer_table[i].entry_count;
     };
@@ -60,6 +85,13 @@ void analyse_mrtrib_peertable(struct mrtrib_peertable *pt) {
   printf("min_entry_count: %d\n", min_entry_count);
   printf("non_zero_entry_counts: %d\n", non_zero_entry_counts);
   printf("aggregate_counts: %d\n", aggregate_counts);
+  sort_peertable(pt);
+  for (i = 0; i < peer_count; i++)
+    if (N_LARGE_TABLE <= peer_table[i].entry_count)
+      large_table_count++;
+  printf("large_table_count: %d (>%d)\n", large_table_count, N_LARGE_TABLE);
+  for (i = 0; i < large_table_count; i++)
+    printf("%d %d %d\n", i, pt->peer_table[i].index, pt->peer_table[i].entry_count);
 };
 
 void report_mrtrib_peertable(struct mrtrib_peertable *pt) {
