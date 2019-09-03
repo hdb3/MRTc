@@ -2,11 +2,18 @@
 #include <stdlib.h>
 #define LENGTH_BGP4MP_COMMON_AS4 20
 #define MIN_MRT_LENGTH 12
+
+// MRT Update stream constants
 #define BGP4MP 16
 #define BGP4MP_STATE_CHANGE 0
 #define BGP4MP_MESSAGE 1
 #define BGP4MP_MESSAGE_AS4 4
 #define BGP4MP_STATE_CHANGE_AS4 5
+
+// MRT RIB dump stream constants
+#define TABLE_DUMP_V2 13
+#define PEER_INDEX_TABLE 1
+#define RIB_IPV4_UNICAST 2
 
 struct stats_bgp4mp {
   // MRT parse level
