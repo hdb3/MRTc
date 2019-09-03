@@ -16,7 +16,7 @@
 #define OFFSET_Peer_Entries (MIN_MRT_LENGTH + 10)
 
 struct mrtrib_ribentry {
-  struct mrtrib_ribentry *next;
+  // struct mrtrib_ribentry *next;
   struct chunk prefix;
   struct chunk path_attributes;
 };
@@ -26,7 +26,7 @@ struct mrtrib_peerrecord {
   uint32_t peer_ip;
   uint32_t peer_bgpid;
   int entry_count;
-  struct mrtrib_ribentry *rib_entry_list;
+  struct mrtrib_ribentry *rib_entry_table;
 };
 
 struct mrtrib_peertable {
@@ -41,15 +41,17 @@ static uint16_t peer_count = 0;
 static struct mrtrib_peerrecord *peer_table;
 
 void analyse_mrtrib_peertable(struct mrtrib_peertable *pt) {
-  int i, max_entry_count, min_entry_count, non_zero_entry_counts;
+  int i, max_entry_count, min_entry_count, non_zero_entry_counts, aggregate_counts;
   printf("\nMRT RIB dump Peer Table\n\n");
   min_entry_count = peer_table[0].entry_count;
   max_entry_count = 0;
+  aggregate_counts = 0;
   non_zero_entry_counts = 0;
   for (i = 0; i < peer_count; i++) {
     if (0 < peer_table[i].entry_count) {
       printf("%d - %d\n", i, peer_table[i].entry_count);
       non_zero_entry_counts++;
+      aggregate_counts += peer_table[i].entry_count;
     };
     min_entry_count = min_entry_count > peer_table[i].entry_count ? peer_table[i].entry_count : min_entry_count;
     max_entry_count = max_entry_count < peer_table[i].entry_count ? peer_table[i].entry_count : max_entry_count;
@@ -57,6 +59,7 @@ void analyse_mrtrib_peertable(struct mrtrib_peertable *pt) {
   printf("max_entry_count: %d\n", max_entry_count);
   printf("min_entry_count: %d\n", min_entry_count);
   printf("non_zero_entry_counts: %d\n", non_zero_entry_counts);
+  printf("aggregate_counts: %d\n", aggregate_counts);
 };
 
 void report_mrtrib_peertable(struct mrtrib_peertable *pt) {
@@ -82,7 +85,13 @@ static int count_RIB_GENERIC = 0;
 static int count_RIB_IPV4_UNICAST_entries = 0;
 int process_RIB_IPV4_UNICAST_entry(uint16_t peer_index, struct chunk bgp_attributes, struct chunk nlri) {
   count_RIB_IPV4_UNICAST_entries++;
-  peer_table[peer_index].entry_count++;
+  assert(peer_table[peer_index].entry_count < 999999);
+  if (0 == peer_table[peer_index].entry_count) {
+    peer_table[peer_index].rib_entry_table = calloc(1000, sizeof(struct mrtrib_ribentry));
+  } else if (999 == peer_table[peer_index].entry_count) {
+    peer_table[peer_index].rib_entry_table = realloc(peer_table[peer_index].rib_entry_table, 1000000 * sizeof(struct mrtrib_ribentry));
+  };
+  peer_table[peer_index].rib_entry_table[peer_table[peer_index].entry_count++] = (struct mrtrib_ribentry){nlri, bgp_attributes};
 };
 
 int process_RIB_IPV4_UNICAST(void *p, uint32_t l) {
