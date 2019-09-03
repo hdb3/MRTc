@@ -41,15 +41,22 @@ static uint16_t peer_count = 0;
 static struct mrtrib_peerrecord *peer_table;
 
 void analyse_mrtrib_peertable(struct mrtrib_peertable *pt) {
-  int i, max_entry_count, min_entry_count;
+  int i, max_entry_count, min_entry_count, non_zero_entry_counts;
   printf("\nMRT RIB dump Peer Table\n\n");
   min_entry_count = peer_table[0].entry_count;
+  max_entry_count = 0;
+  non_zero_entry_counts = 0;
   for (i = 0; i < peer_count; i++) {
+    if (0 < peer_table[i].entry_count) {
+      printf("%d - %d\n", i, peer_table[i].entry_count);
+      non_zero_entry_counts++;
+    };
     min_entry_count = min_entry_count > peer_table[i].entry_count ? peer_table[i].entry_count : min_entry_count;
     max_entry_count = max_entry_count < peer_table[i].entry_count ? peer_table[i].entry_count : max_entry_count;
   };
   printf("max_entry_count: %d\n", max_entry_count);
   printf("min_entry_count: %d\n", min_entry_count);
+  printf("non_zero_entry_counts: %d\n", non_zero_entry_counts);
 };
 
 void report_mrtrib_peertable(struct mrtrib_peertable *pt) {
@@ -98,6 +105,7 @@ int process_RIB_IPV4_UNICAST(void *p, uint32_t l) {
     attribute_length = getw16(rib_entries + 6);
     bgp_attributes.length = attribute_length;
     bgp_attributes.data = rib_entries + 8;
+    process_RIB_IPV4_UNICAST_entry(peer_index, bgp_attributes, nlri);
     rib_entries += attribute_length + 8;
   };
   if (rib_entries != rib_entries_limit)
