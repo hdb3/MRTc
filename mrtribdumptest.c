@@ -14,4 +14,5 @@ int main(int argc, char **argv) {
   buf = map_mrt_file(argv[1]);
   pt = get_mrtrib_peertable(buf);
   report_mrtrib_peertable(pt);
+  analyse_mrtrib_peertable(pt);
 };

@@ -37,6 +37,21 @@ struct mrtrib_peertable {
   struct mrtrib_peerrecord *peer_table;
 };
 
+static uint16_t peer_count = 0;
+static struct mrtrib_peerrecord *peer_table;
+
+void analyse_mrtrib_peertable(struct mrtrib_peertable *pt) {
+  int i, max_entry_count, min_entry_count;
+  printf("\nMRT RIB dump Peer Table\n\n");
+  min_entry_count = peer_table[0].entry_count;
+  for (i = 0; i < peer_count; i++) {
+    min_entry_count = min_entry_count > peer_table[i].entry_count ? peer_table[i].entry_count : min_entry_count;
+    max_entry_count = max_entry_count < peer_table[i].entry_count ? peer_table[i].entry_count : max_entry_count;
+  };
+  printf("max_entry_count: %d\n", max_entry_count);
+  printf("min_entry_count: %d\n", min_entry_count);
+};
+
 void report_mrtrib_peertable(struct mrtrib_peertable *pt) {
   printf("\nMRT RIB dump Peer Table\n\n");
   printf("got %d MRT items\n", pt->mrt_count);
@@ -57,6 +72,39 @@ static int count_RIB_IPV6_UNICAST = 0;
 static int count_RIB_IPV6_MULTICAST = 0;
 static int count_RIB_GENERIC = 0;
 
+static int count_RIB_IPV4_UNICAST_entries = 0;
+int process_RIB_IPV4_UNICAST_entry(uint16_t peer_index, struct chunk bgp_attributes, struct chunk nlri) {
+  count_RIB_IPV4_UNICAST_entries++;
+  peer_table[peer_index].entry_count++;
+};
+
+int process_RIB_IPV4_UNICAST(void *p, uint32_t l) {
+  // only get here if the subtype is RIB_IPV4_UNICAST
+  // the pointer is to the payload, not the MRT container
+  int i;
+  struct chunk nlri, bgp_attributes;
+  uint16_t peer_index, attribute_length;
+  void *nlri_ptr = p + 4;
+  uint8_t prefix_length = *(uint8_t *)nlri_ptr;
+  uint8_t prefix_size = (prefix_length + 15) / 8;
+  uint16_t entry_count = getw16(p + 4 + prefix_size);
+  void *rib_entries = p + 6 + prefix_size;
+  void *rib_entries_limit = p + l;
+  nlri.length = prefix_size;
+  nlri.data = nlri_ptr;
+  for (i = 0; i < entry_count; i++) {
+    peer_index = getw16(rib_entries);
+    assert(peer_index <= peer_count);
+    attribute_length = getw16(rib_entries + 6);
+    bgp_attributes.length = attribute_length;
+    bgp_attributes.data = rib_entries + 8;
+    rib_entries += attribute_length + 8;
+  };
+  if (rib_entries != rib_entries_limit)
+    printf("excepttion in process_RIB_IPV4_UNICAST %d %p %p %p\n", i, p, rib_entries, rib_entries_limit);
+  assert(rib_entries == rib_entries_limit);
+};
+
 int mrt_item_process(void *p, uint32_t l) {
   uint16_t msg_type, msg_subtype;
   int rval = 1;
@@ -71,6 +119,7 @@ int mrt_item_process(void *p, uint32_t l) {
       count_PEER_INDEX_TABLE++;
       break;
     case RIB_IPV4_UNICAST:
+      process_RIB_IPV4_UNICAST(p + MIN_MRT_LENGTH, l);
       count_RIB_IPV4_UNICAST++;
       break;
     case RIB_IPV4_MULTICAST:
@@ -108,7 +157,6 @@ int mrt_list_walker(struct chunk buf) {
     mrt_rec_length = getw32(mrt_buffer_ptr + 8);
     mrt_buffer_next = mrt_buffer_ptr + mrt_rec_length + MIN_MRT_LENGTH;
     assert(mrt_buffer_next <= mrt_buffer_limit);
-
     if (mrt_item_process(mrt_buffer_ptr, mrt_rec_length)) {
       mrt_item_count++;
       mrt_buffer_ptr = mrt_buffer_next;
@@ -143,12 +191,15 @@ struct mrtrib_peertable *get_mrtrib_peertable(struct chunk buf) {
   struct mrtrib_peertable *rval = calloc(1, sizeof(struct mrtrib_peertable));
 
   // parse the initial MRT record which must be type TABLE_DUMP_V2 subtype PEER_INDEX_TABLE
-  uint16_t peer_count = parse_mrt_TABLE_DUMP_V2(buf);
+  peer_count = parse_mrt_TABLE_DUMP_V2(buf);
+  printf("parse_mrt_TABLE_DUMP_V2: %d peers\n", peer_count);
   rval->peer_count = peer_count;
   rval->peer_table = calloc(peer_count, sizeof(struct mrtrib_peerrecord));
+  peer_table = rval->peer_table;
   rval->mrt_count = mrt_list_walker(buf);
   assert(1 == count_PEER_INDEX_TABLE);
   rval->ipv4_unicast_count = count_RIB_IPV4_UNICAST;
   rval->non_ipv4_unicast_count = count_RIB_IPV4_MULTICAST + count_RIB_IPV6_UNICAST + count_RIB_IPV6_MULTICAST + count_RIB_GENERIC;
+  printf("get_mrtrib_peertable: %d count_RIB_IPV4_UNICAST_entries\n", count_RIB_IPV4_UNICAST_entries);
   return rval;
 };
