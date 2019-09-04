@@ -42,8 +42,7 @@ struct mrtrib {
   struct mrtrib_peerrecord *peer_table;
 };
 
-static uint16_t peer_count = 0;
-static struct mrtrib_peerrecord *peer_table;
+struct mrtrib *rib;
 
 // there should be a simple cast over the function signature which
 // would alias the natural function, but I could not make it compile ;-(
@@ -129,13 +128,13 @@ static int count_RIB_IPV4_UNICAST_entries = 0;
 int process_RIB_IPV4_UNICAST_entry(uint16_t peer_index, struct chunk bgp_attributes, struct chunk nlri) {
   max_peer_index = max_peer_index < peer_index ? peer_index : max_peer_index;
   count_RIB_IPV4_UNICAST_entries++;
-  assert(peer_table[peer_index].entry_count < 999999);
-  if (0 == peer_table[peer_index].entry_count) {
-    peer_table[peer_index].rib_entry_table = calloc(1000, sizeof(struct mrtrib_ribentry));
-  } else if (999 == peer_table[peer_index].entry_count) {
-    peer_table[peer_index].rib_entry_table = realloc(peer_table[peer_index].rib_entry_table, 1000000 * sizeof(struct mrtrib_ribentry));
+  assert(rib->peer_table[peer_index].entry_count < 999999);
+  if (0 == rib->peer_table[peer_index].entry_count) {
+    rib->peer_table[peer_index].rib_entry_table = calloc(1000, sizeof(struct mrtrib_ribentry));
+  } else if (999 == rib->peer_table[peer_index].entry_count) {
+    rib->peer_table[peer_index].rib_entry_table = realloc(rib->peer_table[peer_index].rib_entry_table, 1000000 * sizeof(struct mrtrib_ribentry));
   };
-  peer_table[peer_index].rib_entry_table[peer_table[peer_index].entry_count++] = (struct mrtrib_ribentry){nlri, bgp_attributes};
+  rib->peer_table[peer_index].rib_entry_table[rib->peer_table[peer_index].entry_count++] = (struct mrtrib_ribentry){nlri, bgp_attributes};
 };
 
 int process_RIB_IPV4_UNICAST(void *p, uint32_t l) {
@@ -154,7 +153,7 @@ int process_RIB_IPV4_UNICAST(void *p, uint32_t l) {
   nlri.data = nlri_ptr;
   for (i = 0; i < entry_count; i++) {
     peer_index = getw16(rib_entries);
-    assert(peer_index <= peer_count);
+    assert(peer_index <= rib->peer_count);
     attribute_length = getw16(rib_entries + 6);
     bgp_attributes.length = attribute_length;
     bgp_attributes.data = rib_entries + 8;
@@ -284,20 +283,18 @@ uint16_t parse_mrt_TABLE_DUMP_V2(struct mrtrib *rib, struct chunk buf) {
 
 struct mrtrib *get_mrtrib(struct chunk buf) {
 
-  struct mrtrib *rval = calloc(1, sizeof(struct mrtrib));
+  rib = calloc(1, sizeof(struct mrtrib));
 
   // parse the initial MRT record which must be type TABLE_DUMP_V2 subtype PEER_INDEX_TABLE
-  parse_mrt_TABLE_DUMP_V2(rval, buf);
-  printf("parse_mrt_TABLE_DUMP_V2: %d peers\n", rval->peer_count);
-  peer_table = rval->peer_table;
-  peer_count = rval->peer_count;
-  rval->mrt_count = mrt_list_walker(buf);
+  parse_mrt_TABLE_DUMP_V2(rib, buf);
+  printf("parse_mrt_TABLE_DUMP_V2: %d peers\n", rib->peer_count);
+  rib->mrt_count = mrt_list_walker(buf);
   assert(1 == count_PEER_INDEX_TABLE);
-  rval->ipv4_unicast_count = count_RIB_IPV4_UNICAST;
-  rval->non_ipv4_unicast_count = count_RIB_IPV4_MULTICAST + count_RIB_IPV6_UNICAST + count_RIB_IPV6_MULTICAST + count_RIB_GENERIC;
+  rib->ipv4_unicast_count = count_RIB_IPV4_UNICAST;
+  rib->non_ipv4_unicast_count = count_RIB_IPV4_MULTICAST + count_RIB_IPV6_UNICAST + count_RIB_IPV6_MULTICAST + count_RIB_GENERIC;
   printf("get_mrtrib: %d count_RIB_IPV4_UNICAST_entries\n", count_RIB_IPV4_UNICAST_entries);
   printf("get_mrtrib: highest active peer index: %d\n", max_peer_index);
-  return rval;
+  return rib;
 };
 
 /*
