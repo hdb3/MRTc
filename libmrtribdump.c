@@ -15,7 +15,7 @@
 
 static struct mrtrib *rib;
 
-void build_updates(struct message_stream *ms, struct mrtrib_peerrecord *pr) {
+void build_updates(struct mrtrib_peerrecord *pr) {
   long int i, length;
   void *p;
   unsigned char marker[16] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
@@ -24,11 +24,10 @@ void build_updates(struct message_stream *ms, struct mrtrib_peerrecord *pr) {
   length = 0;
   for (i = 0; i < pr->entry_count; i++)
     length += 23 + pr->rib_entry_table[i].prefix.length + pr->rib_entry_table[i].path_attributes.length;
-  printf("build_updates: allocating %ld\n", length);
   p = malloc(length);
   assert(NULL != p);
-  ms->base = p;
-  ms->length = length;
+  pr->updates.length = length;
+  pr->updates.data = p;
   for (i = 0; i < pr->entry_count; i++) {
     memcpy(p, marker, 16);
     update_length = 23 + pr->rib_entry_table[i].prefix.length + pr->rib_entry_table[i].path_attributes.length;
@@ -41,7 +40,7 @@ void build_updates(struct message_stream *ms, struct mrtrib_peerrecord *pr) {
     memcpy(p + 23 + update_length, pr->rib_entry_table[i].prefix.data, pr->rib_entry_table[i].prefix.length);
     p += update_length;
   };
-  assert(p == ms->base + ms->length);
+  assert(p == pr->updates.length + pr->updates.data);
 };
 
 // there should be a simple cast over the function signature which
@@ -59,7 +58,7 @@ void show_mrtrib_peerrecord(struct mrtrib_peerrecord *peer) {
     inet_ntop(AF_INET6, &peer->peer_ip6, peer_ip_str, INET6_ADDRSTRLEN);
   else
     inet_ntop(AF_INET, &peer->peer_ip, peer_ip_str, sizeof(struct sockaddr));
-  printf("[%d %s AS%6d ", peer->index, peer_ip_str, peer->peer_as);
+  printf("[%d %s AS%-6d ", peer->index, peer_ip_str, peer->peer_as);
   printf("%s]", inet_ntoa((struct in_addr){peer->peer_bgpid}));
 };
 
@@ -69,8 +68,6 @@ void sort_peertable(struct mrtrib *rib) {
     rib->peer_table[i].index = i;
 
   qsort(rib->peer_table, rib->peer_count, sizeof(struct mrtrib_peerrecord), compare_mrtrib_peerrecord);
-  struct message_stream ms;
-  build_updates(&ms, &rib->peer_table[0]);
 };
 
 void analyse_mrtrib(struct mrtrib *rib) {
@@ -101,7 +98,8 @@ void analyse_mrtrib(struct mrtrib *rib) {
   for (i = 0; i < large_table_count; i++) {
     printf("%d: ", i);
     show_mrtrib_peerrecord(&rib->peer_table[i]);
-    printf(" %d\n", rib->peer_table[i].entry_count);
+    build_updates(&rib->peer_table[i]);
+    printf(" entries%d allocated update size %d\n", rib->peer_table[i].entry_count, rib->peer_table[i].updates.length);
   };
 };
 

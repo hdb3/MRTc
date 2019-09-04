@@ -4,11 +4,6 @@
 #define OFFSET_View_Name (MIN_MRT_LENGTH + 6)
 #define N_LARGE_TABLE 500000
 
-struct message_stream {
-  int length;
-  void *base;
-};
-
 struct mrtrib_ribentry {
   struct chunk prefix;
   struct chunk path_attributes;
@@ -25,6 +20,7 @@ struct mrtrib_peerrecord {
     struct in_addr peer_ip;
     struct in6_addr peer_ip6;
   };
+  struct chunk updates;
 };
 
 struct mrtrib {
@@ -35,7 +31,7 @@ struct mrtrib {
   struct mrtrib_peerrecord *peer_table;
 };
 
-void build_updates(struct message_stream *ms, struct mrtrib_peerrecord *pr);
+void build_updates(struct mrtrib_peerrecord *pr);
 
 struct mrtrib *get_mrtrib(struct chunk buf);
 void report_mrtrib(struct mrtrib *pt);
