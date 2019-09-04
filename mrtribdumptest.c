@@ -8,12 +8,12 @@
 int main(int argc, char **argv) {
   struct chunk buf;
   printf("MRTribdump\n");
-  struct mrtrib_peertable *pt = NULL;
+  struct mrtrib *rib = NULL;
 
   assert(1 < argc);
   buf = map_mrt_file(argv[1]);
-  pt = get_mrtrib_peertable(buf);
-  report_mrtrib_peertable(pt);
-  analyse_mrtrib_peertable(pt);
-  //sort_peertable(pt);
+  rib = get_mrtrib(buf);
+  report_mrtrib(rib);
+  analyse_mrtrib(rib);
+  //sort_peertable(rib);
 };
