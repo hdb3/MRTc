@@ -24,10 +24,14 @@ struct mrtrib_ribentry {
 struct mrtrib_peerrecord {
   int index;
   uint32_t peer_as;
-  uint32_t peer_ip;
   uint32_t peer_bgpid;
   int entry_count;
   struct mrtrib_ribentry *rib_entry_table;
+  int is_ipv6;
+  union {
+    struct in_addr peer_ip;
+    struct in6_addr peer_ip6;
+  };
 };
 
 struct mrtrib_peertable {
@@ -51,7 +55,12 @@ int compare_mrtrib_peerrecord(const void *a, const void *b) {
 };
 
 void show_mrtrib_peerrecord(struct mrtrib_peerrecord *peer) {
-  printf("[%d %s AS%6d ", peer->index, inet_ntoa((struct in_addr){peer->peer_ip}), peer->peer_as);
+  char peer_ip_str[INET6_ADDRSTRLEN];
+  if (peer->is_ipv6)
+    inet_ntop(AF_INET6, &peer->peer_ip6, peer_ip_str, INET6_ADDRSTRLEN);
+  else
+    inet_ntop(AF_INET, &peer->peer_ip, peer_ip_str, sizeof(struct sockaddr));
+  printf("[%d %s AS%6d ", peer->index, peer_ip_str, peer->peer_as);
   printf("%s]", inet_ntoa((struct in_addr){peer->peer_bgpid}));
 };
 
@@ -226,8 +235,6 @@ uint16_t parse_mrt_TABLE_DUMP_V2(struct mrtrib_peertable *pt, struct chunk buf) 
   uint8_t peer_type;
   void *peer_entries, *peer_entries_limit;
   int i;
-  int invalid_peer_count = 0;
-  int valid_peer_count = 0;
   int ip_addr_length, as_addr_length;
   int offset = 0;
 
@@ -248,28 +255,31 @@ uint16_t parse_mrt_TABLE_DUMP_V2(struct mrtrib_peertable *pt, struct chunk buf) 
     ip_addr_length = (0x01 & peer_type) ? 16 : 4;
     as_addr_length = (0x02 & peer_type) ? 4 : 2;
     printf("%3d (%2x:%1d/%1d) ", i, peer_type, ip_addr_length, as_addr_length);
+
     if (2 == as_addr_length) // 16 bit peer AS, may still be operating in AS4 sessions??
-      mrt_as = getw16(peer_entries + 5 + ip_addr_length);
+      pt->peer_table[i].peer_as = getw16(peer_entries + 5 + ip_addr_length);
     else
-      mrt_as = getw32(peer_entries + 5 + ip_addr_length);
-    if (4 == ip_addr_length) { // i.e. IPv4 so we can process this
-      pt->peer_table[valid_peer_count].index = valid_peer_count;
-      pt->peer_table[valid_peer_count].peer_bgpid = __bswap_32(getw32(peer_entries + 1));
-      pt->peer_table[valid_peer_count].peer_ip = __bswap_32(getw32(peer_entries + 5));
-      pt->peer_table[valid_peer_count].peer_as = mrt_as;
-      show_mrtrib_peerrecord(&pt->peer_table[valid_peer_count]);
-      // printf(" %d\n", i);
-      valid_peer_count++;
-    } else
-      invalid_peer_count++;
+      pt->peer_table[i].peer_as = getw32(peer_entries + 5 + ip_addr_length);
+
+    if (pt->peer_table[i].is_ipv6) // IPv6 peer may still have IPv4 data!!
+      pt->peer_table[i].peer_ip6 = *(struct in6_addr *)(peer_entries + 5);
+    else
+      pt->peer_table[i].peer_ip = (struct in_addr){__bswap_32(getw32(peer_entries + 5))};
+
+    pt->peer_table[i].is_ipv6 = (16 == ip_addr_length);
+    pt->peer_table[i].index = i;
+    pt->peer_table[i].peer_bgpid = __bswap_32(getw32(peer_entries + 1));
+
+    show_mrtrib_peerrecord(&pt->peer_table[i]);
+    // printf(" %d\n", i);
     printf(" @%d\n", offset);
     offset += 5 + ip_addr_length + as_addr_length;
     peer_entries += 5 + ip_addr_length + as_addr_length;
   };
   printf("%d peers processed, peer_entries %p peer_entries_limit %p [%ld]\n", i, peer_entries, peer_entries_limit, peer_entries_limit - peer_entries);
+  // why does this assertion fail???
   // assert(peer_entries_limit == peer_entries);
-  // assert(mrt_peer_count == valid_peer_count + invalid_peer_count);
-  pt->peer_count = valid_peer_count;
+  pt->peer_count = mrt_peer_count;
 };
 
 struct mrtrib_peertable *get_mrtrib_peertable(struct chunk buf) {
