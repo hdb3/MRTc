@@ -21,6 +21,7 @@ void build_updates(struct message_stream *ms, struct mrtrib_peerrecord *pr) {
   unsigned char marker[16] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
   uint16_t attributes_length, update_length;
 
+  length = 0;
   for (i = 0; i < pr->entry_count; i++)
     length += 23 + pr->rib_entry_table[i].prefix.length + pr->rib_entry_table[i].path_attributes.length;
   printf("build_updates: allocating %ld\n", length);
