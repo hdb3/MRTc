@@ -261,14 +261,14 @@ uint16_t parse_mrt_TABLE_DUMP_V2(struct mrtrib_peertable *pt, struct chunk buf) 
     else
       pt->peer_table[i].peer_as = getw32(peer_entries + 5 + ip_addr_length);
 
+    pt->peer_table[i].is_ipv6 = (16 == ip_addr_length);
+    pt->peer_table[i].index = i;
+    pt->peer_table[i].peer_bgpid = __bswap_32(getw32(peer_entries + 1));
+
     if (pt->peer_table[i].is_ipv6) // IPv6 peer may still have IPv4 data!!
       pt->peer_table[i].peer_ip6 = *(struct in6_addr *)(peer_entries + 5);
     else
       pt->peer_table[i].peer_ip = (struct in_addr){__bswap_32(getw32(peer_entries + 5))};
-
-    pt->peer_table[i].is_ipv6 = (16 == ip_addr_length);
-    pt->peer_table[i].index = i;
-    pt->peer_table[i].peer_bgpid = __bswap_32(getw32(peer_entries + 1));
 
     show_mrtrib_peerrecord(&pt->peer_table[i]);
     // printf(" %d\n", i);
@@ -299,3 +299,15 @@ struct mrtrib_peertable *get_mrtrib_peertable(struct chunk buf) {
   printf("get_mrtrib_peertable: highest active peer index: %d\n", max_peer_index);
   return rval;
 };
+
+/*
+// a useful scrap for hex
+    if (pt->peer_table[i].is_ipv6) {
+      uint8_t *p = peer_entries + 5;
+      int j;
+      printf("[");
+      for (j=0;j<10;j++)
+        printf(" %02x",*p++);
+      printf("]\n");
+    };
+*/
