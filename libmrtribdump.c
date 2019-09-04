@@ -11,38 +11,37 @@
 #include <unistd.h>
 
 #include "libmrt.h"
+#include "libmrtribdump.h"
 
-#define OFFSET_View_Name_Length (MIN_MRT_LENGTH + 4)
-#define OFFSET_View_Name (MIN_MRT_LENGTH + 6)
-#define N_LARGE_TABLE 500000
+static struct mrtrib *rib;
 
-struct mrtrib_ribentry {
-  struct chunk prefix;
-  struct chunk path_attributes;
-};
+void build_updates(struct message_stream *ms, struct mrtrib_peerrecord *pr) {
+  long int i, length;
+  void *p;
+  unsigned char marker[16] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+  uint16_t attributes_length, update_length;
 
-struct mrtrib_peerrecord {
-  int index;
-  uint32_t peer_as;
-  uint32_t peer_bgpid;
-  int entry_count;
-  struct mrtrib_ribentry *rib_entry_table;
-  int is_ipv6;
-  union {
-    struct in_addr peer_ip;
-    struct in6_addr peer_ip6;
+  for (i = 0; i < pr->entry_count; i++)
+    length += 23 + pr->rib_entry_table[i].prefix.length + pr->rib_entry_table[i].path_attributes.length;
+  printf("build_updates: allocating %ld\n", length);
+  p = malloc(length);
+  assert(NULL != p);
+  ms->base = p;
+  ms->length = length;
+  for (i = 0; i < pr->entry_count; i++) {
+    memcpy(p, marker, 16);
+    update_length = 23 + pr->rib_entry_table[i].prefix.length + pr->rib_entry_table[i].path_attributes.length;
+    *(uint16_t *)(p + 16) = __bswap_16(update_length);
+    *(uint8_t *)(p + 18) = 2;  // type == update
+    *(uint16_t *)(p + 19) = 0; //   Withdrawn Routes Length
+    attributes_length = (uint16_t)pr->rib_entry_table[i].path_attributes.length;
+    *(uint16_t *)(p + 21) = __bswap_16(attributes_length);
+    memcpy(p + 23, pr->rib_entry_table[i].path_attributes.data, pr->rib_entry_table[i].path_attributes.length);
+    memcpy(p + 23 + update_length, pr->rib_entry_table[i].prefix.data, pr->rib_entry_table[i].prefix.length);
+    p += update_length;
   };
+  assert(p == ms->base + ms->length);
 };
-
-struct mrtrib {
-  int mrt_count;
-  int ipv4_unicast_count;
-  int non_ipv4_unicast_count;
-  int peer_count;
-  struct mrtrib_peerrecord *peer_table;
-};
-
-struct mrtrib *rib;
 
 // there should be a simple cast over the function signature which
 // would alias the natural function, but I could not make it compile ;-(
@@ -69,6 +68,8 @@ void sort_peertable(struct mrtrib *rib) {
     rib->peer_table[i].index = i;
 
   qsort(rib->peer_table, rib->peer_count, sizeof(struct mrtrib_peerrecord), compare_mrtrib_peerrecord);
+  struct message_stream ms;
+  build_updates(&ms, &rib->peer_table[0]);
 };
 
 void analyse_mrtrib(struct mrtrib *rib) {
