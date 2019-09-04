@@ -32,6 +32,19 @@ void report_stats_bgp4mp(struct stats_bgp4mp *sp) {
   printf("Keepalives %d\n", sp->keepalive_count);
 };
 
+void print_chunk(struct chunk ch) {
+  int j;
+  uint8_t *p = ch.data;
+  printf("[");
+  for (j = 0; j < ch.length; j++)
+    printf(" %02x", *p++);
+  printf("]\n");
+};
+
+void unmap_mrt_file(struct chunk ch) {
+  munmap(ch.data, ch.length);
+};
+
 struct chunk map_mrt_file(char *fname) {
   void *buf = NULL;
   struct stat sb;

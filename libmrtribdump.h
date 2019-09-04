@@ -32,6 +32,7 @@ struct mrtrib {
 };
 
 void build_updates(struct mrtrib_peerrecord *pr);
+struct chunk get_updates(struct mrtrib *rib, int index);
 
 struct mrtrib *get_mrtrib(struct chunk buf);
 void report_mrtrib(struct mrtrib *pt);

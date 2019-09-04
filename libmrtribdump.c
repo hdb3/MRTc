@@ -15,6 +15,11 @@
 
 static struct mrtrib *rib;
 
+struct chunk get_updates(struct mrtrib *rib, int index) {
+  assert(index < rib->peer_count);
+  return rib->peer_table[index].updates;
+};
+
 void build_updates(struct mrtrib_peerrecord *pr) {
   long int i, length;
   void *p;
@@ -36,8 +41,8 @@ void build_updates(struct mrtrib_peerrecord *pr) {
     *(uint16_t *)(p + 19) = 0; //   Withdrawn Routes Length
     attributes_length = (uint16_t)pr->rib_entry_table[i].path_attributes.length;
     *(uint16_t *)(p + 21) = __bswap_16(attributes_length);
-    memcpy(p + 23, pr->rib_entry_table[i].path_attributes.data, pr->rib_entry_table[i].path_attributes.length);
-    memcpy(p + 23 + update_length, pr->rib_entry_table[i].prefix.data, pr->rib_entry_table[i].prefix.length);
+    memcpy(p + 23, pr->rib_entry_table[i].path_attributes.data, attributes_length);
+    memcpy(p + 23 + attributes_length, pr->rib_entry_table[i].prefix.data, pr->rib_entry_table[i].prefix.length);
     p += update_length;
   };
   assert(p == pr->updates.length + pr->updates.data);

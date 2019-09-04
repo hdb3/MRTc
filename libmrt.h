@@ -53,6 +53,8 @@ static inline uint16_t getw16(void *p) { return __bswap_16(*(uint16_t *)p); };
 
 static inline uint32_t getw32(void *p) { return __bswap_32(*(uint32_t *)p); };
 
+void print_chunk(struct chunk ch);
+void unmap_mrt_file(struct chunk ch);
 struct chunk map_mrt_file(char *fname);
 
 struct msg_list_item *mrt_parse(struct chunk buf, struct stats_bgp4mp *sp);
