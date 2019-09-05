@@ -62,19 +62,21 @@ struct chunk map_mrt_file(char *fname) {
 };
 
 void show_bgp4mp_common(void *p) {
+  char peer_ip_str[INET6_ADDRSTRLEN];
+  char local_ip_str[INET6_ADDRSTRLEN];
   uint32_t peer_as = getw32(p + 0);
   uint32_t local_as = getw32(p + 4);
   uint16_t if_index = getw16(p + 8);
   uint16_t afi = getw16(p + 10);
-  uint32_t peer_ip = getw32(p + 12);
-  uint32_t local_ip = getw32(p + 16);
-  // printf("bgp4mp_common peer_as=%6d local_as=%6d if_index=%d afi=%d
-  // peer_ip=%s ",
-  printf("bgp4mp_common peer_as %-6d local_as %-6d peer_ip %-16s ", peer_as,
-         local_as,
-         // peer_as, local_as, if_index, afi,
-         inet_ntoa((struct in_addr){peer_ip}));
-  printf("local_ip %-16s\n", inet_ntoa((struct in_addr){local_ip}));
+
+  if (2 == afi) { // ipv6
+    inet_ntop(AF_INET6, p + 12, peer_ip_str, INET6_ADDRSTRLEN);
+    inet_ntop(AF_INET6, p + 28, local_ip_str, INET6_ADDRSTRLEN);
+  } else { // ipv4
+    inet_ntop(AF_INET, p + 12, peer_ip_str, INET6_ADDRSTRLEN);
+    inet_ntop(AF_INET, p + 16, local_ip_str, INET6_ADDRSTRLEN);
+  };
+  printf("bgp4mp_common peer_as %-6d local_as %-6d peer_ip %-24s local_ip %s\n", peer_as, local_as, peer_ip_str, local_ip_str);
 };
 
 struct msg_list_item *mrt_parse(struct chunk buf, struct stats_bgp4mp *sp) {
@@ -86,6 +88,8 @@ struct msg_list_item *mrt_parse(struct chunk buf, struct stats_bgp4mp *sp) {
   void *ppeers = NULL;
   int peers = 0;
   int found, pn;
+  int BGP4MP_header_length, min_mrt_length;
+  int is_AS4 = 0;
 
   while (buf.length >= MIN_MRT_LENGTH) {
     msg_timestamp = getw32(buf.data + 0);
@@ -93,20 +97,46 @@ struct msg_list_item *mrt_parse(struct chunk buf, struct stats_bgp4mp *sp) {
     msg_subtype = getw16(buf.data + 6);
     msg_length = getw32(buf.data + 8);
     assert(buf.length >= MIN_MRT_LENGTH + msg_length);
-    if (msg_type != BGP4MP) {
-      printf("wrong msg_type %d/%d\n", msg_type, msg_subtype);
+
+    if (msg_type == BGP4MP)
+      min_mrt_length = MIN_MRT_LENGTH;
+    else if (msg_type == BGP4MP_ET)
+      min_mrt_length = MIN_MRT_LENGTH_ET;
+    else {
+      printf("wrong msg_type %d/%d msg# %d\n", msg_type, msg_subtype, sp->mrt_count);
       exit(1);
     };
-    // BGP4MP -> the AFI is at a fixed offset in all subtypes
-    uint16_t afi = getw16(buf.data + MIN_MRT_LENGTH + 10);
-    if (1 != afi) // IPv6 is 2....
-      sp->ipv6_discards++;
-    else { // lookup the bgp4mp common header in the raw peer table
+    switch (msg_subtype) {
+    case BGP4MP_STATE_CHANGE:
+    case BGP4MP_MESSAGE:
+    case BGP4MP_MESSAGE_LOCAL:
+      is_AS4 = 0;
+      if (0 == sp->as2_discards)
+        printf("first unsupported AS2 msg_subtype %d at msg %d\n", msg_subtype, sp->mrt_count);
+      sp->as2_discards++;
+      break;
+    case BGP4MP_MESSAGE_AS4:
+    case BGP4MP_STATE_CHANGE_AS4:
+    case BGP4MP_MESSAGE_AS4_LOCAL:
+      is_AS4 = 1;
+      break;
+    default:
+      printf("bad msg_sub_type %d/%d\n", msg_type, msg_subtype);
+      exit(1);
+    };
+
+    if (is_AS4) {
+      // BGP4MP -> the AFI is at a fixed offset in all subtypes
+      uint16_t afi = getw16(buf.data + min_mrt_length + 10);
+      BGP4MP_header_length = (1 == afi) ? 20 : 44;
+      if ((1 == afi) || (2 == afi)) {
+      } else
+        printf("AFI wrong %d at mrt_count %d %d/%d\n", afi, sp->mrt_count, msg_type, msg_subtype);
+      assert((1 == afi) || (2 == afi));
+      // lookup the bgp4mp common header in the raw peer table
       found = 0;
       for (pn = 0; pn < peers; pn++)
-        if (0 == memcmp(buf.data + MIN_MRT_LENGTH,
-                        ppeers + pn * LENGTH_BGP4MP_COMMON_AS4,
-                        LENGTH_BGP4MP_COMMON_AS4)) {
+        if (0 == memcmp(buf.data + min_mrt_length, ppeers + pn * 44, BGP4MP_header_length)) {
           found = 1;
           break;
         };
@@ -120,19 +150,19 @@ struct msg_list_item *mrt_parse(struct chunk buf, struct stats_bgp4mp *sp) {
 
       if (0 == found) {
         peers++;
-        ppeers = realloc(ppeers, peers * LENGTH_BGP4MP_COMMON_AS4);
-        memcpy(ppeers + (peers - 1) * LENGTH_BGP4MP_COMMON_AS4,
-               buf.data + MIN_MRT_LENGTH, LENGTH_BGP4MP_COMMON_AS4);
+        ppeers = realloc(ppeers, peers * 44);
+        memcpy(ppeers + (peers - 1) * 44, buf.data + min_mrt_length, BGP4MP_header_length);
         printf("new peer added,number %3d - ", peers);
-        show_bgp4mp_common(buf.data + MIN_MRT_LENGTH);
+        show_bgp4mp_common(buf.data + min_mrt_length);
         pn = peers - 1;
       };
 
       if (msg_subtype == BGP4MP_MESSAGE_AS4) {
         sp->bgp_messages++;
         next = calloc(1, sizeof(struct msg_list_item));
-        (next->msg).data = buf.data + MIN_MRT_LENGTH + 20;
-        (next->msg).length = msg_length - MIN_MRT_LENGTH;
+        // capture the BGP4MP message payload)
+        (next->msg).data = buf.data + min_mrt_length + BGP4MP_header_length;
+        (next->msg).length = msg_length - BGP4MP_header_length;
         if (NULL == head) {
           head = next;
         } else {
@@ -141,22 +171,18 @@ struct msg_list_item *mrt_parse(struct chunk buf, struct stats_bgp4mp *sp) {
         current = next;
       } else if (msg_subtype == BGP4MP_STATE_CHANGE_AS4) {
         sp->state_changes++;
-        uint16_t old_state = getw16(buf.data + MIN_MRT_LENGTH + 20);
-        uint16_t new_state = getw16(buf.data + MIN_MRT_LENGTH + 22);
-        // show_bgp4mp_common(buf.data + MIN_MRT_LENGTH);
+        uint16_t old_state = getw16(buf.data + min_mrt_length + BGP4MP_header_length);
+        uint16_t new_state = getw16(buf.data + min_mrt_length + BGP4MP_header_length + 2);
+        // show_bgp4mp_common(buf.data + min_mrt_length);
         // printf("state change %d -> %d at %d\n", old_state, new_state,
         // sp->mrt_count);
-      } else if (msg_subtype == BGP4MP_MESSAGE) {
-        sp->as2_discards++;
-      } else if (msg_subtype == BGP4MP_STATE_CHANGE) {
-        sp->as2_discards++;
       } else {
         printf("wrong msg_subtype %d at msg %d\n", msg_subtype, sp->mrt_count);
         // exit(1);
       };
     };
-    buf.data += MIN_MRT_LENGTH + msg_length;
-    buf.length -= MIN_MRT_LENGTH + msg_length;
+    buf.data += min_mrt_length + msg_length;
+    buf.length -= min_mrt_length + msg_length;
     sp->mrt_count++;
   };
   return head;

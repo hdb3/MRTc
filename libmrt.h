@@ -1,14 +1,18 @@
 #include <stdint.h>
 #include <stdlib.h>
-#define LENGTH_BGP4MP_COMMON_AS4 20
+//#define LENGTH_BGP4MP_COMMON_AS4 20
 #define MIN_MRT_LENGTH 12
+#define MIN_MRT_LENGTH_ET 16
 
 // MRT Update stream constants
 #define BGP4MP 16
+#define BGP4MP_ET 17
 #define BGP4MP_STATE_CHANGE 0
 #define BGP4MP_MESSAGE 1
 #define BGP4MP_MESSAGE_AS4 4
 #define BGP4MP_STATE_CHANGE_AS4 5
+#define BGP4MP_MESSAGE_LOCAL 6
+#define BGP4MP_MESSAGE_AS4_LOCAL 7
 
 // MRT RIB dump stream constants
 #define TABLE_DUMP_V2 13
