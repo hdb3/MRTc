@@ -90,13 +90,16 @@ struct msg_list_item *mrt_parse(struct chunk buf, struct stats_bgp4mp *sp) {
   int found, pn;
   int BGP4MP_header_length, min_mrt_length;
   int is_AS4 = 0;
+  int bytes_left = buf.length;
+  void *ptr = buf.data;
 
-  while (buf.length >= MIN_MRT_LENGTH) {
-    msg_timestamp = getw32(buf.data + 0);
-    msg_type = getw16(buf.data + 4);
-    msg_subtype = getw16(buf.data + 6);
-    msg_length = getw32(buf.data + 8);
-    assert(buf.length >= MIN_MRT_LENGTH + msg_length);
+  while (bytes_left >= MIN_MRT_LENGTH) {
+    // printf("progress: %d left %ld consumed\n",bytes_left,ptr-buf.data);
+    msg_timestamp = getw32(ptr + 0);
+    msg_type = getw16(ptr + 4);
+    msg_subtype = getw16(ptr + 6);
+    msg_length = getw32(ptr + 8);
+    assert(bytes_left >= MIN_MRT_LENGTH + msg_length);
 
     if (msg_type == BGP4MP)
       min_mrt_length = MIN_MRT_LENGTH;
@@ -127,7 +130,7 @@ struct msg_list_item *mrt_parse(struct chunk buf, struct stats_bgp4mp *sp) {
 
     if (is_AS4) {
       // BGP4MP -> the AFI is at a fixed offset in all subtypes
-      uint16_t afi = getw16(buf.data + min_mrt_length + 10);
+      uint16_t afi = getw16(ptr + min_mrt_length + 10);
       BGP4MP_header_length = (1 == afi) ? 20 : 44;
       if ((1 == afi) || (2 == afi)) {
       } else
@@ -136,7 +139,7 @@ struct msg_list_item *mrt_parse(struct chunk buf, struct stats_bgp4mp *sp) {
       // lookup the bgp4mp common header in the raw peer table
       found = 0;
       for (pn = 0; pn < peers; pn++)
-        if (0 == memcmp(buf.data + min_mrt_length, ppeers + pn * 44, BGP4MP_header_length)) {
+        if (0 == memcmp(ptr + min_mrt_length, ppeers + pn * 44, BGP4MP_header_length)) {
           found = 1;
           break;
         };
@@ -151,9 +154,9 @@ struct msg_list_item *mrt_parse(struct chunk buf, struct stats_bgp4mp *sp) {
       if (0 == found) {
         peers++;
         ppeers = realloc(ppeers, peers * 44);
-        memcpy(ppeers + (peers - 1) * 44, buf.data + min_mrt_length, BGP4MP_header_length);
+        memcpy(ppeers + (peers - 1) * 44, ptr + min_mrt_length, BGP4MP_header_length);
         printf("new peer added,number %3d - ", peers);
-        show_bgp4mp_common(buf.data + min_mrt_length);
+        show_bgp4mp_common(ptr + min_mrt_length);
         pn = peers - 1;
       };
 
@@ -161,7 +164,7 @@ struct msg_list_item *mrt_parse(struct chunk buf, struct stats_bgp4mp *sp) {
         sp->bgp_messages++;
         next = calloc(1, sizeof(struct msg_list_item));
         // capture the BGP4MP message payload)
-        (next->msg).data = buf.data + min_mrt_length + BGP4MP_header_length;
+        (next->msg).data = ptr + min_mrt_length + BGP4MP_header_length;
         (next->msg).length = msg_length - BGP4MP_header_length;
         if (NULL == head) {
           head = next;
@@ -171,9 +174,9 @@ struct msg_list_item *mrt_parse(struct chunk buf, struct stats_bgp4mp *sp) {
         current = next;
       } else if (msg_subtype == BGP4MP_STATE_CHANGE_AS4) {
         sp->state_changes++;
-        uint16_t old_state = getw16(buf.data + min_mrt_length + BGP4MP_header_length);
-        uint16_t new_state = getw16(buf.data + min_mrt_length + BGP4MP_header_length + 2);
-        // show_bgp4mp_common(buf.data + min_mrt_length);
+        uint16_t old_state = getw16(ptr + min_mrt_length + BGP4MP_header_length);
+        uint16_t new_state = getw16(ptr + min_mrt_length + BGP4MP_header_length + 2);
+        // show_bgp4mp_common(ptr + min_mrt_length);
         // printf("state change %d -> %d at %d\n", old_state, new_state,
         // sp->mrt_count);
       } else {
@@ -181,10 +184,13 @@ struct msg_list_item *mrt_parse(struct chunk buf, struct stats_bgp4mp *sp) {
         // exit(1);
       };
     };
-    buf.data += min_mrt_length + msg_length;
-    buf.length -= min_mrt_length + msg_length;
+    // note - even for _ET extended type messages the message length calculation uses the old
+    // method, i.e. the timestamp extension is effectively part of the payload for _ET types
+    ptr += MIN_MRT_LENGTH + msg_length;
+    bytes_left -= MIN_MRT_LENGTH + msg_length;
     sp->mrt_count++;
   };
+  // printf("progress: %d left %ld consumed\n",bytes_left,ptr-buf.data);
   return head;
 };
 
