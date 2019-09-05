@@ -2,6 +2,9 @@
 #include <stdlib.h>
 #define MIN_MRT_LENGTH 12
 #define MIN_MRT_LENGTH_ET 16
+#define BGP4MP_IPV4_PEER_HEADER_LENGTH 20
+#define BGP4MP_IPV6_PEER_HEADER_LENGTH 44
+#define BGP4MP_PEER_HEADER_LENGTH 44
 
 // MRT Update stream constants
 #define BGP4MP 16
@@ -33,6 +36,12 @@ struct msg_list_item {
   int peer_index;
 };
 
+struct bgp4mp_peer {
+  struct msg_list_item *msg_list;
+  int msg_list_length;
+  uint8_t peer_header[BGP4MP_PEER_HEADER_LENGTH];
+};
+
 struct stats_bgp4mp {
   // MRT parse level
   int mrt_count;
@@ -42,6 +51,7 @@ struct stats_bgp4mp {
   int ipv6_discards;
   struct msg_list_item *msg_list;
   int peer_count;
+  struct bgp4mp_peer *peers;
 
   // bgp parse level
   int open_count;

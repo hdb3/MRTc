@@ -85,7 +85,6 @@ void mrt_parse(struct chunk buf, struct stats_bgp4mp *sp) {
   struct chunk bgp_msg;
   uint16_t msg_type, msg_subtype;
   uint32_t msg_length, msg_timestamp;
-  void *ppeers = NULL;
   int peers = 0;
   int found, pn;
   int BGP4MP_header_length, min_mrt_length;
@@ -131,7 +130,7 @@ void mrt_parse(struct chunk buf, struct stats_bgp4mp *sp) {
     if (is_AS4) {
       // BGP4MP -> the AFI is at a fixed offset in all subtypes
       uint16_t afi = getw16(ptr + min_mrt_length + 10);
-      BGP4MP_header_length = (1 == afi) ? 20 : 44;
+      BGP4MP_header_length = (1 == afi) ? BGP4MP_IPV4_PEER_HEADER_LENGTH : BGP4MP_IPV6_PEER_HEADER_LENGTH;
       if ((1 == afi) || (2 == afi)) {
       } else
         printf("AFI wrong %d at mrt_count %d %d/%d\n", afi, sp->mrt_count, msg_type, msg_subtype);
@@ -139,7 +138,7 @@ void mrt_parse(struct chunk buf, struct stats_bgp4mp *sp) {
       // lookup the bgp4mp common header in the raw peer table
       found = 0;
       for (pn = 0; pn < peers; pn++)
-        if (0 == memcmp(ptr + min_mrt_length, ppeers + pn * 44, BGP4MP_header_length)) {
+        if (0 == memcmp(ptr + min_mrt_length, &sp->peers[pn].peer_header, BGP4MP_header_length)) {
           found = 1;
           break;
         };
@@ -153,11 +152,11 @@ void mrt_parse(struct chunk buf, struct stats_bgp4mp *sp) {
 
       if (0 == found) {
         peers++;
-        ppeers = realloc(ppeers, peers * 44);
-        memcpy(ppeers + (peers - 1) * 44, ptr + min_mrt_length, BGP4MP_header_length);
-        printf("new peer added,number %3d - ", peers);
-        show_bgp4mp_common(ptr + min_mrt_length);
         pn = peers - 1;
+        sp->peers = realloc(sp->peers, peers * sizeof(struct bgp4mp_peer));
+        memcpy(&sp->peers[pn].peer_header, ptr + min_mrt_length, BGP4MP_header_length);
+        printf("new peer added, index %3d - ", pn);
+        show_bgp4mp_common(&sp->peers[pn].peer_header);
       };
 
       if (msg_subtype == BGP4MP_MESSAGE_AS4) {
@@ -178,8 +177,7 @@ void mrt_parse(struct chunk buf, struct stats_bgp4mp *sp) {
         uint16_t old_state = getw16(ptr + min_mrt_length + BGP4MP_header_length);
         uint16_t new_state = getw16(ptr + min_mrt_length + BGP4MP_header_length + 2);
         // show_bgp4mp_common(ptr + min_mrt_length);
-        // printf("state change %d -> %d at %d\n", old_state, new_state,
-        // sp->mrt_count);
+        // printf("state change %d -> %d at %d\n", old_state, new_state, sp->mrt_count);
       } else {
         printf("wrong msg_subtype %d at msg %d\n", msg_subtype, sp->mrt_count);
       };
