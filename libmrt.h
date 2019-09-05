@@ -1,6 +1,5 @@
 #include <stdint.h>
 #include <stdlib.h>
-//#define LENGTH_BGP4MP_COMMON_AS4 20
 #define MIN_MRT_LENGTH 12
 #define MIN_MRT_LENGTH_ET 16
 

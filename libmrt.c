@@ -181,7 +181,6 @@ struct msg_list_item *mrt_parse(struct chunk buf, struct stats_bgp4mp *sp) {
         // sp->mrt_count);
       } else {
         printf("wrong msg_subtype %d at msg %d\n", msg_subtype, sp->mrt_count);
-        // exit(1);
       };
     };
     // note - even for _ET extended type messages the message length calculation uses the old
