@@ -79,7 +79,7 @@ void show_bgp4mp_common(void *p) {
   printf("bgp4mp_common peer_as %-6d local_as %-6d peer_ip %-24s local_ip %s\n", peer_as, local_as, peer_ip_str, local_ip_str);
 };
 
-struct msg_list_item *mrt_parse(struct chunk buf, struct stats_bgp4mp *sp) {
+void mrt_parse(struct chunk buf, struct stats_bgp4mp *sp) {
   struct msg_list_item *next, *current, *head;
   head = NULL;
   struct chunk bgp_msg;
@@ -164,8 +164,9 @@ struct msg_list_item *mrt_parse(struct chunk buf, struct stats_bgp4mp *sp) {
         sp->bgp_messages++;
         next = calloc(1, sizeof(struct msg_list_item));
         // capture the BGP4MP message payload)
-        (next->msg).data = ptr + min_mrt_length + BGP4MP_header_length;
-        (next->msg).length = msg_length - BGP4MP_header_length;
+        next->msg.data = ptr + min_mrt_length + BGP4MP_header_length;
+        next->msg.length = msg_length - BGP4MP_header_length;
+        next->peer_index = pn;
         if (NULL == head) {
           head = next;
         } else {
@@ -190,7 +191,8 @@ struct msg_list_item *mrt_parse(struct chunk buf, struct stats_bgp4mp *sp) {
     sp->mrt_count++;
   };
   // printf("progress: %d left %ld consumed\n",bytes_left,ptr-buf.data);
-  return head;
+  sp->msg_list = head;
+  sp->peer_count = peers;
 };
 
 int process_update(struct chunk msg){};
@@ -249,8 +251,7 @@ int count_msg_list(struct msg_list_item *list) {
   return i;
 };
 
-struct msg_list_item *filter_msgs(struct msg_list_item *list,
-                                  struct stats_bgp4mp *sp) {
+struct msg_list_item *filter_msgs(struct msg_list_item *list, struct stats_bgp4mp *sp, int peer_index) {
   // filter list of non-compliant chunks based on process_bgp_message return
   // value builds a new list with a dummy head, which is discarded on exit
   struct msg_list_item head = {NULL, (struct chunk){NULL, 0}};
@@ -258,7 +259,7 @@ struct msg_list_item *filter_msgs(struct msg_list_item *list,
   struct msg_list_item *next;
   while (list != NULL) {
     next = list->next;
-    if (process_bgp_message(list->msg, sp)) {
+    if ((-1 == peer_index || list->peer_index == peer_index) && process_bgp_message(list->msg, sp)) {
       last->next = list;
       last = list;
     } else {
