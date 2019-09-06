@@ -90,7 +90,10 @@ void report_stats_bgp4mp_mrt(struct stats_bgp4mp_mrt *sp) {
     printf("    discarded %d IPv6 items\n", sp->ipv6_discards);
   if (0 < sp->as2_discards)
     printf("    discarded %d AS2 items\n", sp->as2_discards);
-  for (i = 0; i < sp->peer_count; i++)
+  printf("sorting peers based on update counts\n");
+  sort_bgp4mp_peers(sp);
+  printf("displaying top 10 peers\n");
+  for (i = 0; i < 10 && i < sp->peer_count; i++)
     show_bgp4mp_peer(&sp->peers[i]);
 };
 

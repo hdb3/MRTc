@@ -67,6 +67,16 @@ struct bgp4mp_peer {
   struct stats_bgp4mp_bgp bgp_stats;
 };
 
+static inline int compare_bgp4mp_peer(const void *a, const void *b) {
+  struct bgp4mp_peer *_a = (struct bgp4mp_peer *)a;
+  struct bgp4mp_peer *_b = (struct bgp4mp_peer *)b;
+  return (_b->bgp_update_count - _a->bgp_update_count);
+};
+
+static inline void sort_bgp4mp_peers(struct stats_bgp4mp_mrt *sp) {
+  qsort(sp->peers, sp->peer_count, sizeof(struct bgp4mp_peer), compare_bgp4mp_peer);
+};
+
 void report_stats_bgp4mp_bgp(struct stats_bgp4mp_bgp *sp);
 void report_stats_bgp4mp_mrt(struct stats_bgp4mp_mrt *sp);
 
