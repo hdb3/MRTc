@@ -58,6 +58,8 @@ struct stats_bgp4mp_bgp {
 
 struct bgp4mp_peer {
   int mrt_file_index;
+  int mrt_msg_count;
+  int mrt_bgp_msg_count;
   struct msg_list_item *msg_list;
   int msg_list_length;
   uint8_t peer_header[BGP4MP_PEER_HEADER_LENGTH];

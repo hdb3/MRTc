@@ -56,13 +56,17 @@ void show_bgp4mp_peer_header(void *p) {
     inet_ntop(AF_INET, p + 12, peer_ip_str, INET6_ADDRSTRLEN);
     inet_ntop(AF_INET, p + 16, local_ip_str, INET6_ADDRSTRLEN);
   };
-  printf("[ peer_as %-6d local_as %-6d peer_ip %-24s local_ip %s]", peer_as, local_as, peer_ip_str, local_ip_str);
+  printf("[ peer_as %-6d local_as %-6d peer_ip %-24s local_ip %-24s]", peer_as, local_as, peer_ip_str, local_ip_str);
 };
 
 void show_bgp4mp_peer(struct bgp4mp_peer *peer) {
+  int msg_count = count_msg_list(peer->msg_list);
   printf("peer #%-3d ", peer->mrt_file_index);
-  show_bgp4mp_peer_header(peer->peer_header);
-  printf("\n");
+  // show_bgp4mp_peer_header(peer->peer_header);
+  //printf(" %-6d MRT records %d messages\n", peer->mrt_msg_count, msg_count);
+  printf(" mrt_msg_count=%-7d mrt_bgp_msg_count=%-7d msg_list_length=%-7d msg_count=%d\n",
+         peer->mrt_msg_count, peer->mrt_bgp_msg_count, peer->msg_list_length, msg_count);
+  //assert(msg_count==peer->mrt_bgp_msg_count);
 };
 
 void report_stats_bgp4mp_bgp(struct stats_bgp4mp_bgp *sp) {
@@ -164,11 +168,14 @@ void mrt_parse(struct chunk buf, struct stats_bgp4mp_mrt *sp) {
         peers++;
         pn = peers - 1;
         sp->peers = realloc(sp->peers, peers * sizeof(struct bgp4mp_peer));
+        memset(&sp->peers[pn], 0, sizeof(struct bgp4mp_peer));
         sp->peers[pn].mrt_file_index = pn;
         memcpy(&sp->peers[pn].peer_header, ptr + min_mrt_length, BGP4MP_header_length);
       };
 
+      sp->peers[pn].mrt_msg_count++;
       if (msg_subtype == BGP4MP_MESSAGE_AS4) {
+        sp->peers[pn].mrt_bgp_msg_count++;
         sp->bgp_messages++;
 
         next = calloc(1, sizeof(struct msg_list_item));
