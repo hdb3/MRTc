@@ -94,6 +94,45 @@ void report_stats_bgp4mp_mrt(struct stats_bgp4mp_mrt *sp) {
     show_bgp4mp_peer(&sp->peers[i]);
 };
 
+static inline int process_bgp_message(struct chunk msg, struct stats_bgp4mp_bgp *sp) {
+  assert(18 < msg.length);
+  uint16_t length = getw16(msg.data + 16);
+  uint8_t typecode = *(uint8_t *)(msg.data + 18);
+  int is_update = 0;
+  switch (typecode) {
+  case 1:
+    sp->open_count++;
+    break;
+  case 2: // Update cases - EOR/Withdraw/Update
+    if (23 == length)
+      sp->eor_count++;
+    else {
+      uint16_t withdraw_length = getw16(msg.data + 19);
+      // simple update
+      if (0 == withdraw_length) {
+        sp->update_count++;
+        is_update = 1;
+        // combined withdraw and update
+      } else if (length != 23 + withdraw_length) {
+        sp->mixed_update_count++;
+        // simple withdraw
+      } else
+        sp->withdraw_count++;
+    };
+    break;
+  case 3:
+    sp->notification_count++;
+    break;
+  case 4:
+    sp->keepalive_count++;
+    break;
+  default:
+    printf("invalid typecode %d\n", typecode);
+    exit(1);
+  };
+  return is_update;
+};
+
 void mrt_parse(struct chunk buf, struct stats_bgp4mp_mrt *sp) {
   struct chunk bgp_msg;
   uint16_t msg_type, msg_subtype;
@@ -221,48 +260,6 @@ void mrt_parse(struct chunk buf, struct stats_bgp4mp_mrt *sp) {
     bytes_left -= MIN_MRT_LENGTH + msg_length;
   };
   sp->peer_count = peers;
-};
-
-int process_update(struct chunk msg){};
-
-static inline int process_bgp_message(struct chunk msg, struct stats_bgp4mp_bgp *sp) {
-  assert(18 < msg.length);
-  uint16_t length = getw16(msg.data + 16);
-  uint8_t typecode = *(uint8_t *)(msg.data + 18);
-  int is_update = 0;
-  switch (typecode) {
-  case 1:
-    sp->open_count++;
-    break;
-  case 2: // Update cases - EOR/Withdraw/Update
-    if (23 == length)
-      sp->eor_count++;
-    else {
-      uint16_t withdraw_length = getw16(msg.data + 19);
-      // simple update
-      if (0 == withdraw_length) {
-        process_update(msg);
-        sp->update_count++;
-        is_update = 1;
-        // combined withdraw and update
-      } else if (length != 23 + withdraw_length) {
-        sp->mixed_update_count++;
-        // simple withdraw
-      } else
-        sp->withdraw_count++;
-    };
-    break;
-  case 3:
-    sp->notification_count++;
-    break;
-  case 4:
-    sp->keepalive_count++;
-    break;
-  default:
-    printf("invalid typecode %d\n", typecode);
-    exit(1);
-  };
-  return is_update;
 };
 
 int count_msg_list(struct msg_list_item *list) {
