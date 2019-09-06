@@ -55,6 +55,7 @@ struct stats_bgp4mp_bgp {
   int notification_count;
   int withdraw_count;
   int mixed_update_count;
+  int mpbgp_count;
 };
 
 struct bgp4mp_peer {

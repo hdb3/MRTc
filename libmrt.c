@@ -105,6 +105,7 @@ void report_stats_bgp4mp_bgp(struct stats_bgp4mp_bgp *sp) {
   printf("Opens %d\n", sp->open_count);
   printf("Updates %d\n", sp->update_count);
   printf("Withdraws %d\n", sp->withdraw_count);
+  printf("MP-BGP Updates %d\n", sp->mpbgp_count);
   printf("Mixed Updates %d\n", sp->mixed_update_count);
   printf("End-of-RIB %d\n", sp->eor_count);
   printf("Notifications %d\n", sp->notification_count);
@@ -178,23 +179,33 @@ static inline int process_bgp_message(struct chunk msg, struct stats_bgp4mp_bgp 
   case 1:
     sp->open_count++;
     break;
-  case 2: // Update cases - EOR/Withdraw/Update
-    if (23 == length)
+  case 2: { // Update cases - EOR/Withdraw/Update
+    uint16_t withdraw_length = getw16(msg.data + 19);
+    uint16_t pathattributes_length = getw16(msg.data + 21 + withdraw_length);
+    uint16_t nlri_length = length - withdraw_length - pathattributes_length - 23;
+    assert(length >= 23 + withdraw_length + pathattributes_length); // sanity check
+
+    if (23 == length) // 0 == pathattributes_length == withdraw_length ~ empty Update aka End-of-RIB
       sp->eor_count++;
-    else {
-      uint16_t withdraw_length = getw16(msg.data + 19);
-      // simple update
+    else if (0 == pathattributes_length) {
+      assert(length == 23 + withdraw_length); // i.e. other than EOR the only legal Update with no path attributes is a plain withdraw
+      sp->withdraw_count++;                   // simple withdraw
+    } else {                                  // non-empty Path Attribute options now
       if (0 == withdraw_length) {
-        sp->update_count++;
-        is_update = 1;
-        // combined withdraw and update
-      } else if (length != 23 + withdraw_length) {
+        if (0 == nlri_length) // MP-BGP  -  NLRI only and always present if this is a plain IPv4 messsage (not MP-BGP which has no NLRI but instead attribute MP_REACH_NLRI)
+          sp->mpbgp_count++;
+        else { // simple update
+          sp->update_count++;
+          is_update = 1;
+        }
+      } else {                   // withdraw_length non-zero
+        assert(0 < nlri_length); // can't have path attributes and withdraw with no NLRI!
+                                 // combined withdraw and update
         sp->mixed_update_count++;
-        // simple withdraw
-      } else
-        sp->withdraw_count++;
+      };
     };
     break;
+  };
   case 3:
     sp->notification_count++;
     break;
