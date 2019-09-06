@@ -33,17 +33,9 @@ struct chunk {
 struct msg_list_item {
   struct msg_list_item *next;
   struct chunk msg;
-  int peer_index;
 };
 
-struct bgp4mp_peer {
-  struct msg_list_item *msg_list;
-  int msg_list_length;
-  uint8_t peer_header[BGP4MP_PEER_HEADER_LENGTH];
-};
-
-struct stats_bgp4mp {
-  // MRT parse level
+struct stats_bgp4mp_mrt {
   int mrt_count;
   int bgp_messages;
   int state_changes;
@@ -52,8 +44,9 @@ struct stats_bgp4mp {
   struct msg_list_item *msg_list;
   int peer_count;
   struct bgp4mp_peer *peers;
+};
 
-  // bgp parse level
+struct stats_bgp4mp_bgp {
   int open_count;
   int update_count;
   int eor_count;
@@ -63,7 +56,16 @@ struct stats_bgp4mp {
   int mixed_update_count;
 };
 
-void report_stats_bgp4mp(struct stats_bgp4mp *sp);
+struct bgp4mp_peer {
+  int mrt_file_index;
+  struct msg_list_item *msg_list;
+  int msg_list_length;
+  uint8_t peer_header[BGP4MP_PEER_HEADER_LENGTH];
+  struct stats_bgp4mp_bgp bgp_stats;
+};
+
+void report_stats_bgp4mp_bgp(struct stats_bgp4mp_bgp *sp);
+void report_stats_bgp4mp_mrt(struct stats_bgp4mp_mrt *sp);
 
 static inline uint16_t getw16(void *p) { return __bswap_16(*(uint16_t *)p); };
 
@@ -73,14 +75,7 @@ void print_chunk(struct chunk ch);
 void unmap_mrt_file(struct chunk ch);
 struct chunk map_mrt_file(char *fname);
 
-void mrt_parse(struct chunk buf, struct stats_bgp4mp *sp);
+void mrt_parse(struct chunk buf, struct stats_bgp4mp_mrt *sp);
 
 int count_msg_list(struct msg_list_item *list);
-struct msg_list_item *filter_msgs(struct msg_list_item *list, struct stats_bgp4mp *sp, int peer_index);
-
-struct peer {
-  uint32_t peer_as;
-  uint32_t local_as;
-  uint32_t peer_ip;
-  uint32_t local_ip;
-};
+struct msg_list_item *filter_msgs(struct msg_list_item *list, struct stats_bgp4mp_bgp *spb);

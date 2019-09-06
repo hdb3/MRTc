@@ -12,26 +12,6 @@
 
 #include "libmrt.h"
 
-void report_stats_bgp4mp(struct stats_bgp4mp *sp) {
-  printf("\nMRT Record Statistics\n\n");
-  printf("got %d MRT items\n", sp->mrt_count);
-  printf("    %d messages, %d state changes\n", sp->bgp_messages,
-         sp->state_changes);
-  if (0 < sp->ipv6_discards)
-    printf("    discarded %d IPv6 items\n", sp->ipv6_discards);
-  if (0 < sp->as2_discards)
-    printf("    discarded %d AS2 items\n", sp->as2_discards);
-
-  printf("\nBGP Message Statistics\n\n");
-  printf("Opens %d\n", sp->open_count);
-  printf("Updates %d\n", sp->update_count);
-  printf("Withdraws %d\n", sp->withdraw_count);
-  printf("Mixed Updates %d\n", sp->mixed_update_count);
-  printf("End-of-RIB %d\n", sp->eor_count);
-  printf("Notifications %d\n", sp->notification_count);
-  printf("Keepalives %d\n", sp->keepalive_count);
-};
-
 void print_chunk(struct chunk ch) {
   int j;
   uint8_t *p = ch.data;
@@ -61,7 +41,7 @@ struct chunk map_mrt_file(char *fname) {
   return (struct chunk){buf, sb.st_size};
 };
 
-void show_bgp4mp_common(void *p) {
+void show_bgp4mp_peer_header(void *p) {
   char peer_ip_str[INET6_ADDRSTRLEN];
   char local_ip_str[INET6_ADDRSTRLEN];
   uint32_t peer_as = getw32(p + 0);
@@ -76,11 +56,41 @@ void show_bgp4mp_common(void *p) {
     inet_ntop(AF_INET, p + 12, peer_ip_str, INET6_ADDRSTRLEN);
     inet_ntop(AF_INET, p + 16, local_ip_str, INET6_ADDRSTRLEN);
   };
-  printf("bgp4mp_common peer_as %-6d local_as %-6d peer_ip %-24s local_ip %s\n", peer_as, local_as, peer_ip_str, local_ip_str);
+  printf("[ peer_as %-6d local_as %-6d peer_ip %-24s local_ip %s]", peer_as, local_as, peer_ip_str, local_ip_str);
 };
 
-void mrt_parse(struct chunk buf, struct stats_bgp4mp *sp) {
-  struct msg_list_item *next, *current, *head;
+void show_bgp4mp_peer(struct bgp4mp_peer *peer) {
+  printf("peer #%-3d ", peer->mrt_file_index);
+  show_bgp4mp_peer_header(peer->peer_header);
+  printf("\n");
+};
+
+void report_stats_bgp4mp_bgp(struct stats_bgp4mp_bgp *sp) {
+  printf("\nBGP Message Statistics\n\n");
+  printf("Opens %d\n", sp->open_count);
+  printf("Updates %d\n", sp->update_count);
+  printf("Withdraws %d\n", sp->withdraw_count);
+  printf("Mixed Updates %d\n", sp->mixed_update_count);
+  printf("End-of-RIB %d\n", sp->eor_count);
+  printf("Notifications %d\n", sp->notification_count);
+  printf("Keepalives %d\n", sp->keepalive_count);
+};
+
+void report_stats_bgp4mp_mrt(struct stats_bgp4mp_mrt *sp) {
+  int i;
+  printf("\nMRT Record Statistics\n\n");
+  printf("got %d MRT items\n", sp->mrt_count);
+  printf("    %d messages, %d state changes\n", sp->bgp_messages, sp->state_changes);
+  if (0 < sp->ipv6_discards)
+    printf("    discarded %d IPv6 items\n", sp->ipv6_discards);
+  if (0 < sp->as2_discards)
+    printf("    discarded %d AS2 items\n", sp->as2_discards);
+  for (i = 0; i < sp->peer_count; i++)
+    show_bgp4mp_peer(&sp->peers[i]);
+};
+
+void mrt_parse(struct chunk buf, struct stats_bgp4mp_mrt *sp) {
+  struct msg_list_item *next, *current, *current2, *head;
   head = NULL;
   struct chunk bgp_msg;
   uint16_t msg_type, msg_subtype;
@@ -92,8 +102,8 @@ void mrt_parse(struct chunk buf, struct stats_bgp4mp *sp) {
   int bytes_left = buf.length;
   void *ptr = buf.data;
 
+  memset(sp, 0, sizeof(*sp));
   while (bytes_left >= MIN_MRT_LENGTH) {
-    // printf("progress: %d left %ld consumed\n",bytes_left,ptr-buf.data);
     msg_timestamp = getw32(ptr + 0);
     msg_type = getw16(ptr + 4);
     msg_subtype = getw16(ptr + 6);
@@ -154,29 +164,42 @@ void mrt_parse(struct chunk buf, struct stats_bgp4mp *sp) {
         peers++;
         pn = peers - 1;
         sp->peers = realloc(sp->peers, peers * sizeof(struct bgp4mp_peer));
+        sp->peers[pn].mrt_file_index = pn;
         memcpy(&sp->peers[pn].peer_header, ptr + min_mrt_length, BGP4MP_header_length);
-        printf("new peer added, index %3d - ", pn);
-        show_bgp4mp_common(&sp->peers[pn].peer_header);
       };
 
       if (msg_subtype == BGP4MP_MESSAGE_AS4) {
         sp->bgp_messages++;
+
         next = calloc(1, sizeof(struct msg_list_item));
         // capture the BGP4MP message payload)
         next->msg.data = ptr + min_mrt_length + BGP4MP_header_length;
         next->msg.length = msg_length - BGP4MP_header_length;
-        next->peer_index = pn;
-        if (NULL == head) {
+
+        if (NULL == head)
           head = next;
-        } else {
+        else
           current->next = next;
-        }
         current = next;
+
+        // create a separate shadow list for each peer
+        next = calloc(1, sizeof(struct msg_list_item));
+        // capture the BGP4MP message payload)
+        next->msg.data = ptr + min_mrt_length + BGP4MP_header_length;
+        next->msg.length = msg_length - BGP4MP_header_length;
+
+        if (NULL == sp->peers[pn].msg_list)
+          sp->peers[pn].msg_list = next;
+        else
+          current2->next = next;
+        current2 = next;
+        sp->peers[pn].msg_list_length++;
+
       } else if (msg_subtype == BGP4MP_STATE_CHANGE_AS4) {
         sp->state_changes++;
         uint16_t old_state = getw16(ptr + min_mrt_length + BGP4MP_header_length);
         uint16_t new_state = getw16(ptr + min_mrt_length + BGP4MP_header_length + 2);
-        // show_bgp4mp_common(ptr + min_mrt_length);
+        // show_bgp4mp_peer_header(ptr + min_mrt_length);
         // printf("state change %d -> %d at %d\n", old_state, new_state, sp->mrt_count);
       } else {
         printf("wrong msg_subtype %d at msg %d\n", msg_subtype, sp->mrt_count);
@@ -188,15 +211,13 @@ void mrt_parse(struct chunk buf, struct stats_bgp4mp *sp) {
     bytes_left -= MIN_MRT_LENGTH + msg_length;
     sp->mrt_count++;
   };
-  // printf("progress: %d left %ld consumed\n",bytes_left,ptr-buf.data);
   sp->msg_list = head;
   sp->peer_count = peers;
 };
 
 int process_update(struct chunk msg){};
 
-static inline int process_bgp_message(struct chunk msg,
-                                      struct stats_bgp4mp *sp) {
+static inline int process_bgp_message(struct chunk msg, struct stats_bgp4mp_bgp *sp) {
   assert(18 < msg.length);
   uint16_t length = getw16(msg.data + 16);
   uint8_t typecode = *(uint8_t *)(msg.data + 18);
@@ -217,8 +238,6 @@ static inline int process_bgp_message(struct chunk msg,
         is_update = 1;
         // combined withdraw and update
       } else if (length != 23 + withdraw_length) {
-        // printf("*** length=%d withdraw_length=%d\n", length,
-        // withdraw_length);
         sp->mixed_update_count++;
         // simple withdraw
       } else
@@ -249,15 +268,16 @@ int count_msg_list(struct msg_list_item *list) {
   return i;
 };
 
-struct msg_list_item *filter_msgs(struct msg_list_item *list, struct stats_bgp4mp *sp, int peer_index) {
+struct msg_list_item *filter_msgs(struct msg_list_item *list, struct stats_bgp4mp_bgp *sp) {
   // filter list of non-compliant chunks based on process_bgp_message return
   // value builds a new list with a dummy head, which is discarded on exit
   struct msg_list_item head = {NULL, (struct chunk){NULL, 0}};
   struct msg_list_item *last = &head;
   struct msg_list_item *next;
+  memset(sp, 0, sizeof(*sp));
   while (list != NULL) {
     next = list->next;
-    if ((-1 == peer_index || list->peer_index == peer_index) && process_bgp_message(list->msg, sp)) {
+    if (process_bgp_message(list->msg, sp)) {
       last->next = list;
       last = list;
     } else {
