@@ -14,7 +14,7 @@ int main(int argc, char **argv) {
   assert(2 == argc);
   buf = map_mrt_file(argv[1]);
   mrt_parse(buf, &mrt_stats);
-  msg_list = mrt_stats.msg_list;
+  msg_list = mrt_stats.msg_list_head;
   printf("got %d messages from %s\n", count_msg_list(msg_list), argv[1]);
   msg_list = filter_msgs(msg_list, &bgp_stats);
   printf("got %d messages after filtering\n", count_msg_list(msg_list));

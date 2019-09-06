@@ -36,12 +36,13 @@ struct msg_list_item {
 };
 
 struct stats_bgp4mp_mrt {
-  int mrt_count;
-  int bgp_messages;
+  int mrt_msg_count;
+  int mrt_bgp_msg_count;
   int state_changes;
   int as2_discards;
   int ipv6_discards;
-  struct msg_list_item *msg_list;
+  struct msg_list_item *msg_list_head, *msg_list_tail;
+  int msg_list_length;
   int peer_count;
   struct bgp4mp_peer *peers;
 };
@@ -60,8 +61,7 @@ struct bgp4mp_peer {
   int mrt_file_index;
   int mrt_msg_count;
   int mrt_bgp_msg_count;
-  struct msg_list_item *msg_list;
-  int msg_list_length;
+  struct msg_list_item *msg_list_head, *msg_list_tail;
   uint8_t peer_header[BGP4MP_PEER_HEADER_LENGTH];
   struct stats_bgp4mp_bgp bgp_stats;
 };
