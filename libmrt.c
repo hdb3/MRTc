@@ -61,13 +61,13 @@ void show_bgp4mp_peer_header(void *p) {
 
 void show_bgp4mp_peer(struct bgp4mp_peer *peer) {
   int msg_count = count_msg_list(peer->msg_list_head);
-  assert(msg_count == peer->mrt_bgp_msg_count);
+  assert(msg_count == peer->bgp_update_count);
 
   printf("peer #%-3d ", peer->mrt_file_index);
 
   show_bgp4mp_peer_header(peer->peer_header);
-  printf(" mrt_msg_count=%-7d mrt_bgp_msg_count=%-7d\n",
-         peer->mrt_msg_count, peer->mrt_bgp_msg_count);
+  printf(" MRT records: %-7d  BGP msgs: %-7d  filtered Updates: %-7d\n",
+         peer->mrt_msg_count, peer->mrt_bgp_msg_count, peer->bgp_update_count);
 };
 
 void report_stats_bgp4mp_bgp(struct stats_bgp4mp_bgp *sp) {
@@ -224,26 +224,27 @@ void mrt_parse(struct chunk buf, struct stats_bgp4mp_mrt *sp) {
         struct msg_list_item *itemg = calloc(1, sizeof(struct msg_list_item));
         itemg->msg = msg_chunk;
 
-        if (NULL == sp->msg_list_head) {
+        if (NULL == sp->msg_list_head)
           sp->msg_list_head = itemg;
-        } else {
+        else
           sp->msg_list_tail->next = itemg;
-        };
         sp->msg_list_length++;
         sp->msg_list_tail = itemg;
 
         // now create a separate shadow list for each peer
         // using same chunk but new msg_list_item
 
-        struct msg_list_item *itemp = calloc(1, sizeof(struct msg_list_item));
-        itemp->msg = msg_chunk;
-
-        if (NULL == pp->msg_list_head) {
-          pp->msg_list_head = itemp;
-        } else {
-          pp->msg_list_tail->next = itemp;
+        int bgp_msg_status = process_bgp_message(msg_chunk, &pp->bgp_stats);
+        if (bgp_msg_status) { // we only want update messages in the list, so skip if not Update
+          struct msg_list_item *itemp = calloc(1, sizeof(struct msg_list_item));
+          itemp->msg = msg_chunk;
+          if (NULL == pp->msg_list_head)
+            pp->msg_list_head = itemp;
+          else
+            pp->msg_list_tail->next = itemp;
+          pp->msg_list_tail = itemp;
+          pp->bgp_update_count++;
         };
-        pp->msg_list_tail = itemp;
       } else if (msg_subtype == BGP4MP_STATE_CHANGE_AS4) {
         sp->state_changes++;
         uint16_t old_state = getw16(ptr + min_mrt_length + BGP4MP_header_length);
