@@ -214,7 +214,7 @@ void mrt_parse(struct chunk buf, struct stats_bgp4mp_mrt *sp) {
   uint32_t msg_length, msg_timestamp;
   int peers = 0;
   int found, pn;
-  int BGP4MP_header_length, min_mrt_length;
+  int ET_extension, BGP4MP_header_length, min_mrt_length;
   int is_AS4 = 0;
   int bytes_left = buf.length;
   void *ptr = buf.data;
@@ -228,11 +228,13 @@ void mrt_parse(struct chunk buf, struct stats_bgp4mp_mrt *sp) {
     assert(bytes_left >= MIN_MRT_LENGTH + msg_length);
     sp->mrt_msg_count++;
 
-    if (msg_type == BGP4MP)
+    if (msg_type == BGP4MP) {
       min_mrt_length = MIN_MRT_LENGTH;
-    else if (msg_type == BGP4MP_ET)
+      ET_extension = 0;
+    } else if (msg_type == BGP4MP_ET) {
       min_mrt_length = MIN_MRT_LENGTH_ET;
-    else {
+      ET_extension = 4;
+    } else {
       printf("wrong msg_type %d/%d msg# %d\n", msg_type, msg_subtype, sp->mrt_msg_count);
       exit(1);
     };
@@ -292,7 +294,7 @@ void mrt_parse(struct chunk buf, struct stats_bgp4mp_mrt *sp) {
       pp->mrt_msg_count++;
       if (msg_subtype == BGP4MP_MESSAGE_AS4) {
         // capture the BGP4MP message payload)
-        struct chunk msg_chunk = (struct chunk){ptr + min_mrt_length + BGP4MP_header_length, msg_length - BGP4MP_header_length};
+        struct chunk msg_chunk = (struct chunk){ptr + min_mrt_length + BGP4MP_header_length, msg_length - BGP4MP_header_length - ET_extension};
         pp->mrt_bgp_msg_count++;
         sp->mrt_bgp_msg_count++;
 
