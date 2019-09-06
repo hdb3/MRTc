@@ -86,9 +86,11 @@ static inline uint32_t getw32(void *p) { return __bswap_32(*(uint32_t *)p); };
 
 void print_chunk(struct chunk ch);
 void unmap_mrt_file(struct chunk ch);
+void write_chunk(const char *fname, struct chunk buf);
 struct chunk map_mrt_file(char *fname);
 
 void mrt_parse(struct chunk buf, struct stats_bgp4mp_mrt *sp);
+struct chunk *get_blocks_bgp4mp(struct stats_bgp4mp_mrt *sp, int nblocks);
 
 int count_msg_list(struct msg_list_item *list);
 struct msg_list_item *filter_msgs(struct msg_list_item *list, struct stats_bgp4mp_bgp *spb);

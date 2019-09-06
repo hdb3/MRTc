@@ -19,6 +19,5 @@ int main(int argc, char **argv) {
   analyse_mrtrib(rib);
   unmap_mrt_file(buf);
   buf = get_updates(rib, 0);
-  int fd = creat("updates.bin", 00664);
-  int tmp = write(fd, buf.data, buf.length);
+  write_chunk("ribdump.bin", buf);
 };

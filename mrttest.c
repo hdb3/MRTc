@@ -5,7 +5,7 @@
 #include "libmrt.h"
 int main(int argc, char **argv) {
 
-  struct chunk buf;
+  struct chunk buf, *blocks;
   struct msg_list_item *msg_list;
   printf("MRTc\n");
   struct stats_bgp4mp_bgp bgp_stats;
@@ -20,4 +20,6 @@ int main(int argc, char **argv) {
   printf("got %d messages after filtering\n", count_msg_list(msg_list));
   report_stats_bgp4mp_mrt(&mrt_stats);
   report_stats_bgp4mp_bgp(&bgp_stats);
+  blocks = get_blocks_bgp4mp(&mrt_stats, 1);
+  write_chunk("updates.bin", blocks[0]);
 };

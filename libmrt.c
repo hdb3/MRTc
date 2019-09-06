@@ -12,6 +12,36 @@
 
 #include "libmrt.h"
 
+#define INFINITY 0x7ffff000
+
+struct chunk block_builder(struct msg_list_item *msg_list) {
+  long int length = 0;
+  struct msg_list_item *p;
+  int offset;
+
+  p = msg_list;
+  while (p != NULL) {
+    length += p->msg.length;
+    p = p->next;
+  };
+  assert(length < INFINITY);
+  void *buffer = malloc(length);
+  assert(NULL != buffer);
+  p = msg_list;
+  offset = 0;
+  while (p != NULL) {
+    memcpy(buffer + offset, p->msg.data, p->msg.length);
+    offset += p->msg.length;
+    p = p->next;
+  };
+  return (struct chunk){buffer, offset};
+};
+
+void write_chunk(const char *fname, struct chunk buf) {
+  int fd = creat(fname, 00664);
+  int tmp = write(fd, buf.data, buf.length);
+};
+
 void print_chunk(struct chunk ch) {
   int j;
   uint8_t *p = ch.data;
@@ -79,6 +109,21 @@ void report_stats_bgp4mp_bgp(struct stats_bgp4mp_bgp *sp) {
   printf("End-of-RIB %d\n", sp->eor_count);
   printf("Notifications %d\n", sp->notification_count);
   printf("Keepalives %d\n", sp->keepalive_count);
+};
+
+struct chunk *get_blocks_bgp4mp(struct stats_bgp4mp_mrt *sp, int nblocks) {
+  int i;
+  struct chunk *blocks = calloc(nblocks + 1, sizeof(struct chunk));
+  sort_bgp4mp_peers(sp);
+  if (nblocks > sp->peer_count)
+    printf("get_blocks_bgp4mp: *** WARNING *** insufficient peers, returning some empty blocks\n");
+  for (i = 0; i < nblocks && i < sp->peer_count; i++)
+    if (i >= sp->peer_count) {
+      blocks[i] = (struct chunk){NULL, 0}; // redundant due to calloc...
+    } else {
+      blocks[i] = block_builder(sp->peers[i].msg_list_head);
+    };
+  return blocks;
 };
 
 void report_stats_bgp4mp_mrt(struct stats_bgp4mp_mrt *sp) {
