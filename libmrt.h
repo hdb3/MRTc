@@ -91,6 +91,7 @@ struct chunk map_mrt_file(char *fname);
 
 void mrt_parse(struct chunk buf, struct stats_bgp4mp_mrt *sp);
 struct chunk *get_blocks_bgp4mp(struct stats_bgp4mp_mrt *sp, int nblocks);
+struct chunk get_one_bgp4mp(struct stats_bgp4mp_mrt *sp, int peer, int msg_number);
 
 int count_msg_list(struct msg_list_item *list);
 struct msg_list_item *filter_msgs(struct msg_list_item *list, struct stats_bgp4mp_bgp *spb);

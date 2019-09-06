@@ -111,6 +111,32 @@ void report_stats_bgp4mp_bgp(struct stats_bgp4mp_bgp *sp) {
   printf("Keepalives %d\n", sp->keepalive_count);
 };
 
+struct chunk get_one_bgp4mp(struct stats_bgp4mp_mrt *sp, int peer, int msg_number) {
+  int i;
+  struct chunk rval = (struct chunk){NULL, 0};
+  sort_bgp4mp_peers(sp);
+  if (peer >= sp->peer_count) {
+    printf("get_one_bgp4mp: *** WARNING *** insufficient peers, cannot continue (%d/%d)\n", peer, sp->peer_count);
+    exit(1);
+  } else if (msg_number > sp->peers[peer].bgp_update_count) {
+    printf("get_one_bgp4mp: *** WARNING *** insufficient msgs, cannot continue (%d/%d)\n", msg_number, sp->peers[peer].bgp_update_count);
+    exit(1);
+  } else {
+
+    struct msg_list_item *list = sp->peers[i].msg_list_head;
+    i = 0;
+    while (list != NULL) {
+      if (msg_number == i) {
+        rval = list->msg;
+        break;
+      };
+      i++;
+      list = list->next;
+    };
+  };
+  return rval;
+};
+
 struct chunk *get_blocks_bgp4mp(struct stats_bgp4mp_mrt *sp, int nblocks) {
   int i;
   struct chunk *blocks = calloc(nblocks + 1, sizeof(struct chunk));
@@ -147,6 +173,7 @@ static inline int process_bgp_message(struct chunk msg, struct stats_bgp4mp_bgp 
   uint16_t length = getw16(msg.data + 16);
   uint8_t typecode = *(uint8_t *)(msg.data + 18);
   int is_update = 0;
+  assert(length == msg.length);
   switch (typecode) {
   case 1:
     sp->open_count++;
