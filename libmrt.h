@@ -48,11 +48,14 @@ struct stats_bgp4mp_mrt {
 };
 
 struct stats_bgp4mp_bgp {
+  int msg_count;
   int open_count;
+  int all_update_count;
+  int notification_count;
+  int keepalive_count;
+  // update sub-types
   int update_count;
   int eor_count;
-  int keepalive_count;
-  int notification_count;
   int withdraw_count;
   int mixed_update_count;
   int mpbgp_count;

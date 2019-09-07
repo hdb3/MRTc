@@ -103,13 +103,15 @@ void show_bgp4mp_peer(struct bgp4mp_peer *peer) {
 void report_stats_bgp4mp_bgp(struct stats_bgp4mp_bgp *sp) {
   printf("\nBGP Message Statistics\n\n");
   printf("Opens %d\n", sp->open_count);
-  printf("Updates %d\n", sp->update_count);
-  printf("Withdraws %d\n", sp->withdraw_count);
-  printf("MP-BGP Updates %d\n", sp->mpbgp_count);
-  printf("Mixed Updates %d\n", sp->mixed_update_count);
-  printf("End-of-RIB %d\n", sp->eor_count);
   printf("Notifications %d\n", sp->notification_count);
   printf("Keepalives %d\n", sp->keepalive_count);
+  printf("Updates %d\n", sp->all_update_count);
+
+  printf("  Plain Updates %d\n", sp->update_count);
+  printf("  Withdraws %d\n", sp->withdraw_count);
+  printf("  MP-BGP Updates %d\n", sp->mpbgp_count);
+  printf("  Mixed Updates %d\n", sp->mixed_update_count);
+  printf("  End-of-RIB %d\n", sp->eor_count);
 };
 
 struct chunk get_one_bgp4mp(struct stats_bgp4mp_mrt *sp, int peer, int msg_number) {
@@ -174,12 +176,14 @@ static inline int process_bgp_message(struct chunk msg, struct stats_bgp4mp_bgp 
   uint16_t length = getw16(msg.data + 16);
   uint8_t typecode = *(uint8_t *)(msg.data + 18);
   int is_update = 0;
+  sp->msg_count++;
   assert(length == msg.length);
   switch (typecode) {
   case 1:
     sp->open_count++;
     break;
   case 2: { // Update cases - EOR/Withdraw/Update
+    sp->all_update_count++;
     uint16_t withdraw_length = getw16(msg.data + 19);
     uint16_t pathattributes_length = getw16(msg.data + 21 + withdraw_length);
     uint16_t nlri_length = length - withdraw_length - pathattributes_length - 23;
