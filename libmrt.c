@@ -112,6 +112,8 @@ void report_stats_bgp4mp_bgp(struct stats_bgp4mp_bgp *sp) {
   printf("  MP-BGP Updates %d\n", sp->mpbgp_count);
   printf("  Mixed Updates %d\n", sp->mixed_update_count);
   printf("  End-of-RIB %d\n", sp->eor_count);
+  printf("    IBGP count %d\n", sp->ibgp_count);
+  printf("    MED count %d\n", sp->med_count);
 };
 
 struct chunk get_one_bgp4mp(struct stats_bgp4mp_mrt *sp, int peer, int msg_number) {
@@ -171,6 +173,34 @@ void report_stats_bgp4mp_mrt(struct stats_bgp4mp_mrt *sp) {
     show_bgp4mp_peer(&sp->peers[i]);
 };
 
+static inline void process_path_attribute(uint8_t type_code, struct chunk msg, struct stats_bgp4mp_bgp *sp) {
+  if (MULTI_EXIT_DISC == type_code) {
+    sp->med_count++;
+  } else if (LOCAL_PREF == type_code) {
+    sp->ibgp_count++;
+  };
+};
+
+static inline void process_path_attributes(struct chunk msg, struct stats_bgp4mp_bgp *sp) {
+  void *p = msg.data;
+  void *limit = msg.data + msg.length;
+  uint8_t flags, type_code;
+  uint16_t length;
+  int med_found = 0;
+  while (p < limit) {
+    flags = *(uint8_t *)p++;
+    type_code = *(uint8_t *)p++;
+    length = (0x10 & flags) ? (*(uint8_t *)p++) << 8 | (*(uint8_t *)p++) : (*(uint8_t *)p++);
+    struct chunk attr = (struct chunk){p, length};
+    process_path_attribute(type_code, attr, sp);
+    p += length;
+  };
+  if (p != limit) {
+    printf("process_path_attributes exception %p %p %p %ld %d\n", msg.data, limit, p, limit - p, msg.length);
+  };
+  assert(p == limit);
+};
+
 static inline int process_bgp_message(struct chunk msg, struct stats_bgp4mp_bgp *sp) {
   assert(18 < msg.length);
   uint16_t length = getw16(msg.data + 16);
@@ -195,6 +225,7 @@ static inline int process_bgp_message(struct chunk msg, struct stats_bgp4mp_bgp 
       assert(length == 23 + withdraw_length); // i.e. other than EOR the only legal Update with no path attributes is a plain withdraw
       sp->withdraw_count++;                   // simple withdraw
     } else {                                  // non-empty Path Attribute options now
+      process_path_attributes((struct chunk){msg.data + 23 + withdraw_length, pathattributes_length}, sp);
       if (0 == withdraw_length) {
         if (0 == nlri_length) // MP-BGP  -  NLRI only and always present if this is a plain IPv4 messsage (not MP-BGP which has no NLRI but instead attribute MP_REACH_NLRI)
           sp->mpbgp_count++;

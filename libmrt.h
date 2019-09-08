@@ -25,6 +25,12 @@
 #define RIB_IPV6_MULTICAST 5
 #define RIB_GENERIC 6
 
+#define ORIGIN 1
+#define AS_PATH 2
+#define NEXT_HOP 3
+#define MULTI_EXIT_DISC 4
+#define LOCAL_PREF 5
+
 struct chunk {
   void *data;
   int length;
@@ -59,6 +65,9 @@ struct stats_bgp4mp_bgp {
   int withdraw_count;
   int mixed_update_count;
   int mpbgp_count;
+  // path attribute level
+  int med_count;
+  int ibgp_count;
 };
 
 struct bgp4mp_peer {

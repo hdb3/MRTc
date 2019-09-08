@@ -240,7 +240,6 @@ uint16_t parse_mrt_TABLE_DUMP_V2(struct mrtrib *rib, struct chunk buf) {
   void *peer_entries, *peer_entries_limit;
   int i;
   int ip_addr_length, as_addr_length;
-  int offset = 0;
 
   assert(MIN_MRT_LENGTH <= buf.length);
   mrt_rec_length = getw32(buf.data + 8);
@@ -258,7 +257,6 @@ uint16_t parse_mrt_TABLE_DUMP_V2(struct mrtrib *rib, struct chunk buf) {
     peer_type = *(uint8_t *)peer_entries;
     ip_addr_length = (0x01 & peer_type) ? 16 : 4;
     as_addr_length = (0x02 & peer_type) ? 4 : 2;
-    printf("%3d (%2x:%1d/%1d) ", i, peer_type, ip_addr_length, as_addr_length);
 
     if (2 == as_addr_length) // 16 bit peer AS, may still be operating in AS4 sessions??
       rib->peer_table[i].peer_as = getw16(peer_entries + 5 + ip_addr_length);
@@ -275,12 +273,10 @@ uint16_t parse_mrt_TABLE_DUMP_V2(struct mrtrib *rib, struct chunk buf) {
       rib->peer_table[i].peer_ip = (struct in_addr){__bswap_32(getw32(peer_entries + 5))};
 
     show_mrtrib_peerrecord(&rib->peer_table[i]);
-    // printf(" %d\n", i);
-    printf(" @%d\n", offset);
-    offset += 5 + ip_addr_length + as_addr_length;
+    printf("\n");
     peer_entries += 5 + ip_addr_length + as_addr_length;
   };
-  printf("%d peers processed, peer_entries %p peer_entries_limit %p [%ld]\n", i, peer_entries, peer_entries_limit, peer_entries_limit - peer_entries);
+  //printf("%d peers processed, peer_entries %p peer_entries_limit %p [%ld]\n", i, peer_entries, peer_entries_limit, peer_entries_limit - peer_entries);
   // why does this assertion fail???
   // assert(peer_entries_limit == peer_entries);
   rib->peer_count = mrt_peer_count;
@@ -301,15 +297,3 @@ struct mrtrib *get_mrtrib(struct chunk buf) {
   printf("get_mrtrib: highest active peer index: %d\n", max_peer_index);
   return rib;
 };
-
-/*
-// a useful scrap for hex
-    if (rib->peer_table[i].is_ipv6) {
-      uint8_t *p = peer_entries + 5;
-      int j;
-      printf("[");
-      for (j=0;j<10;j++)
-        printf(" %02x",*p++);
-      printf("]\n");
-    };
-*/
