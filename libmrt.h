@@ -127,7 +127,7 @@ struct mrt_bgp4mp {
   struct msg_list_item *msg_list_head, *msg_list_tail;
   int msg_list_length;
   int peer_count;
-  struct mrt_peerrecord *peers;
+  struct mrt_peerrecord *peer_table;
 };
 
 void build_updates(struct mrt_peerrecord *pr);
@@ -145,7 +145,7 @@ static inline int compare_bgp4mp_peer(const void *a, const void *b) {
 };
 
 static inline void sort_bgp4mp_peers(struct mrt_bgp4mp *sp) {
-  qsort(sp->peers, sp->peer_count, sizeof(struct mrt_peerrecord), compare_bgp4mp_peer);
+  qsort(sp->peer_table, sp->peer_count, sizeof(struct mrt_peerrecord), compare_bgp4mp_peer);
 };
 
 void report_bgp4mp_bgp_stats(struct bgp4mp_bgp_stats *sp);
