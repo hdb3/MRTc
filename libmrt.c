@@ -71,22 +71,18 @@ struct chunk map_mrt_file(char *fname) {
   return (struct chunk){buf, sb.st_size};
 };
 
-void show_bgp4mp_peer_header(void *p) {
+void show_bgp4mp_peer_address(struct mrt_peerrecord *peer) {
   char peer_ip_str[INET6_ADDRSTRLEN];
   char local_ip_str[INET6_ADDRSTRLEN];
-  uint32_t peer_as = getw32(p + 0);
-  uint32_t local_as = getw32(p + 4);
-  uint16_t if_index = getw16(p + 8);
-  uint16_t afi = getw16(p + 10);
 
-  if (2 == afi) { // ipv6
-    inet_ntop(AF_INET6, p + 12, peer_ip_str, INET6_ADDRSTRLEN);
-    inet_ntop(AF_INET6, p + 28, local_ip_str, INET6_ADDRSTRLEN);
-  } else { // ipv4
-    inet_ntop(AF_INET, p + 12, peer_ip_str, INET6_ADDRSTRLEN);
-    inet_ntop(AF_INET, p + 16, local_ip_str, INET6_ADDRSTRLEN);
+  if (peer->is_ipv6) {
+    inet_ntop(AF_INET6, &peer->peer_ip6, peer_ip_str, INET6_ADDRSTRLEN);
+    inet_ntop(AF_INET6, &peer->local_ip6, local_ip_str, INET6_ADDRSTRLEN);
+  } else {
+    inet_ntop(AF_INET, &peer->peer_ip, peer_ip_str, INET6_ADDRSTRLEN);
+    inet_ntop(AF_INET, &peer->local_ip, local_ip_str, INET6_ADDRSTRLEN);
   };
-  printf("[ peer: as %-6d ip %-24s local: as %-6d ip %-24s]", peer_as, peer_ip_str, local_as, local_ip_str);
+  printf("[ peer: as %-6d ip %-24s local: as %-6d ip %-24s]", peer->peer_as, peer_ip_str, peer->local_as, local_ip_str);
 };
 
 void show_bgp4mp_peer(struct mrt_peerrecord *peer) {
@@ -95,7 +91,7 @@ void show_bgp4mp_peer(struct mrt_peerrecord *peer) {
 
   printf("peer %-3d ", peer->mrt_file_index);
 
-  show_bgp4mp_peer_header(peer->bgp4mp.peer_header);
+  show_bgp4mp_peer_address(peer);
   printf(" MRT records: %-7d  BGP msgs: %-7d  filtered Updates: %-7d\n",
          peer->bgp4mp.rec_count, peer->bgp4mp.bgp_msg_count, peer->bgp4mp.update_count);
 };
@@ -254,9 +250,20 @@ static inline int process_bgp_message(struct chunk msg, struct bgp4mp_bgp_stats 
   return is_update;
 };
 
-void *initialise_bgp4mp_peer(struct mrt_peerrecord *peer){
-    //memset(&sp->peers[pn], 0, sizeof(struct bgp4mp_peer));
-    // sp->peers[pn].mrt_file_index = pn;
+void *initialise_bgp4mp_peer(struct mrt_peerrecord *peer) {
+  void *header = peer->bgp4mp.peer_header;
+  uint16_t address_family = getw16(header + 10);
+  assert(0x0001 == address_family || 0x0002 == address_family);
+  peer->is_ipv6 = 0x0002 == address_family;
+  peer->peer_as = getw32(header + 0);
+  peer->local_as = getw32(header + 4);
+  if (peer->is_ipv6) {
+    peer->peer_ip6 = *(struct in6_addr *)(header + 12);
+    peer->local_ip6 = *(struct in6_addr *)(header + 20);
+  } else {
+    peer->peer_ip = (struct in_addr){__bswap_32(getw32(header + 12))};
+    peer->local_ip = (struct in_addr){__bswap_32(getw32(header + 16))};
+  };
 };
 
 void mrt_parse(struct chunk buf, struct mrt_bgp4mp *sp) {

@@ -84,11 +84,16 @@ struct bgp4mp_peer {
 
 struct mrt_peerrecord {
   int mrt_file_index;
+  uint32_t local_as;
   uint32_t peer_as;
   uint32_t peer_bgpid;
   union {
     struct in_addr peer_ip;
     struct in6_addr peer_ip6;
+  };
+  union {
+    struct in_addr local_ip;
+    struct in6_addr local_ip6;
   };
   struct chunk updates;
   union {
