@@ -76,13 +76,15 @@ void sort_peer_table(struct mrt_tabledump *tabledump) {
 void analyse_mrt_tabledump(struct mrt_tabledump *tabledump) {
   int i, max_entry_count, min_entry_count, non_zero_entry_counts, aggregate_counts;
   int large_table_count = 0;
+  struct mrt_tabledump_peer_record *rib = NULL;
   printf("\nMRT TABLE dump Peer Table\n\n");
   min_entry_count = tabledump->peer_table[0].rib.count;
   max_entry_count = 0;
   aggregate_counts = 0;
   non_zero_entry_counts = 0;
-  struct mrt_tabledump_peer_record *rib;
-  for (i = 0; i < tabledump->peer_count; rib = &tabledump->peer_table[i++].rib) {
+  for (i = 0; i < tabledump->peer_count; i++) {
+    rib = &tabledump->peer_table[i].rib;
+    printf("analyse_mrt_tabledump, peer %d (%p)\n", i, rib);
     if (0 < rib->count) {
       non_zero_entry_counts++;
       aggregate_counts += rib->count;
@@ -120,7 +122,7 @@ void report_mrt_tabledump(struct mrt_tabledump *tabledump) {
   printf("peer table contains %d records\n", tabledump->peer_count);
 };
 
-static inline int process_RIB_IPV4_UNICAST_entry(struct mrt_tabledump *tabledump, uint16_t peer_index, struct chunk bgp_attributes, struct chunk nlri) {
+static inline void process_RIB_IPV4_UNICAST_entry(struct mrt_tabledump *tabledump, uint16_t peer_index, struct chunk bgp_attributes, struct chunk nlri) {
   tabledump->max_peer_index = tabledump->max_peer_index < peer_index ? peer_index : tabledump->max_peer_index;
   struct mrt_tabledump_peer_record *rib = &tabledump->peer_table[peer_index].rib;
   assert(rib->count < 999999);
@@ -132,7 +134,7 @@ static inline int process_RIB_IPV4_UNICAST_entry(struct mrt_tabledump *tabledump
   rib->table[rib->count++] = (struct mrt_ribentry){nlri, bgp_attributes};
 };
 
-static inline int process_RIB_IPV4_UNICAST(struct mrt_tabledump *tabledump, void *p, uint32_t l) {
+static inline void process_RIB_IPV4_UNICAST(struct mrt_tabledump *tabledump, void *p, uint32_t l) {
   // only get here if the subtype is RIB_IPV4_UNICAST
   // the pointer is to the payload, not the MRT container
   int i;
@@ -223,20 +225,24 @@ void mrt_list_walker(struct mrt_tabledump *tabledump, struct chunk buf) {
   tabledump->mrt_count = mrt_item_count;
 };
 
-static inline uint16_t parse_mrt_TABLE_DUMP_V2(struct mrt_tabledump *rib, struct chunk buf) {
-  uint32_t mrt_rec_length, mrt_as;
+static inline void parse_mrt_TABLE_DUMP_V2(struct mrt_tabledump *rib, struct chunk buf) {
+  // uint32_t mrt_rec_length;
   uint16_t msg_type, msg_subtype, mrt_peer_count, mrt_view_name_length;
   uint8_t peer_type;
   void *peer_entries, *peer_entries_limit;
   int i;
   int ip_addr_length, as_addr_length;
 
-  assert(MIN_MRT_LENGTH <= buf.length);
-  mrt_rec_length = getw32(buf.data + 8);
+  // we're not really doing much integrity checking here...
+  // assert(MIN_MRT_LENGTH <= buf.length);
+  // mrt_rec_length = getw32(buf.data + 8);
+
+  // except to check the table type/subtype, which is pretty fundamental!
   msg_type = getw16(buf.data + 4);
   assert(TABLE_DUMP_V2 == msg_type);
   msg_subtype = getw16(buf.data + 6);
   assert(PEER_INDEX_TABLE == msg_subtype);
+
   mrt_view_name_length = getw16(buf.data + OFFSET_View_Name_Length);
   mrt_peer_count = getw16(buf.data + OFFSET_View_Name_Length + 2 + mrt_view_name_length);
   rib->peer_table = calloc(mrt_peer_count, sizeof(struct mrt_peer_record));
@@ -248,7 +254,6 @@ static inline uint16_t parse_mrt_TABLE_DUMP_V2(struct mrt_tabledump *rib, struct
     peer_type = *(uint8_t *)peer_entries;
     peer->is_ipv6 = 0x01 & peer_type;
     ip_addr_length = peer->is_ipv6 ? 16 : 4;
-    //ip_addr_length = (0x01 & peer_type) ? 16 : 4;
     as_addr_length = (0x02 & peer_type) ? 4 : 2;
 
     if (2 == as_addr_length) // 16 bit peer AS, may still be operating in AS4 sessions??
@@ -256,7 +261,6 @@ static inline uint16_t parse_mrt_TABLE_DUMP_V2(struct mrt_tabledump *rib, struct
     else
       peer->peer_as = getw32(peer_entries + 5 + ip_addr_length);
 
-    //peer->is_ipv6 = (16 == ip_addr_length);
     peer->mrt_file_index = i;
     peer->peer_bgpid = __bswap_32(getw32(peer_entries + 1));
 

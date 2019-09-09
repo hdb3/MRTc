@@ -124,8 +124,8 @@ struct chunk get_one_bgp4mp(struct mrt_bgp4mp *sp, int peer, int msg_number) {
     exit(1);
   } else {
 
-    struct msg_list_item *list = sp->peer_table[i].bgp4mp.msg_list_head;
     i = 0;
+    struct msg_list_item *list = sp->peer_table[i].bgp4mp.msg_list_head;
     while (list != NULL) {
       if (msg_number == i) {
         rval = list->msg;
@@ -182,13 +182,13 @@ static inline void process_path_attributes(struct chunk msg, struct bgp4mp_bgp_s
   void *limit = msg.data + msg.length;
   uint8_t flags, type_code;
   uint16_t length;
-  int med_found = 0;
   while (p < limit) {
     flags = *(uint8_t *)p++;
     type_code = *(uint8_t *)p++;
-    length = (0x10 & flags) ? (*(uint8_t *)p++) << 8 | (*(uint8_t *)p++) : (*(uint8_t *)p++);
-    struct chunk attr = (struct chunk){p, length};
-    process_path_attribute(type_code, attr, sp);
+    length = *(uint8_t *)p++;
+    if (0x10 & flags)
+      length = length << 8 | (*(uint8_t *)p++);
+    process_path_attribute(type_code, (struct chunk){p, length}, sp);
     p += length;
   };
   if (p != limit) {
@@ -250,7 +250,7 @@ static inline int process_bgp_message(struct chunk msg, struct bgp4mp_bgp_stats 
   return is_update;
 };
 
-void *initialise_bgp4mp_peer(struct mrt_peer_record *peer) {
+void initialise_bgp4mp_peer(struct mrt_peer_record *peer) {
   void *header = peer->bgp4mp.peer_header;
   uint16_t address_family = getw16(header + 10);
   assert(0x0001 == address_family || 0x0002 == address_family);
@@ -267,7 +267,6 @@ void *initialise_bgp4mp_peer(struct mrt_peer_record *peer) {
 };
 
 void mrt_parse(struct chunk buf, struct mrt_bgp4mp *sp) {
-  struct chunk bgp_msg;
   uint16_t msg_type, msg_subtype;
   uint32_t msg_length, msg_timestamp;
   int found, pn;
@@ -384,8 +383,8 @@ void mrt_parse(struct chunk buf, struct mrt_bgp4mp *sp) {
         };
       } else if (msg_subtype == BGP4MP_STATE_CHANGE_AS4) {
         sp->state_changes++;
-        uint16_t old_state = getw16(ptr + min_mrt_length + BGP4MP_header_length);
-        uint16_t new_state = getw16(ptr + min_mrt_length + BGP4MP_header_length + 2);
+        // uint16_t old_state = getw16(ptr + min_mrt_length + BGP4MP_header_length);
+        // uint16_t new_state = getw16(ptr + min_mrt_length + BGP4MP_header_length + 2);
         // show_bgp4mp_peer_header(ptr + min_mrt_length);
         // printf("state change %d -> %d at %d\n", old_state, new_state, sp->mrt_count);
       } else {
