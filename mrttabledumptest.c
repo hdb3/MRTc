@@ -16,6 +16,7 @@ int main(int argc, char **argv) {
   rib = get_mrt_tabledump(buf);
   report_mrt_tabledump(rib);
   analyse_mrt_tabledump(rib);
+  build_updates_mrt_tabledump(rib, 500000);
   unmap_mrt_file(buf);
   if (3 == argc) {
     int peer_index;

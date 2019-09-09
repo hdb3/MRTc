@@ -75,7 +75,6 @@ void sort_peer_table(struct mrt_tabledump *tabledump) {
 
 void analyse_mrt_tabledump(struct mrt_tabledump *tabledump) {
   int i, max_entry_count, min_entry_count, non_zero_entry_counts, aggregate_counts;
-  int large_table_count = 0;
   struct mrt_tabledump_peer_record *rib = NULL;
   printf("\nMRT TABLE dump Peer Table\n\n");
   min_entry_count = tabledump->peer_table[0].rib.count;
@@ -84,7 +83,6 @@ void analyse_mrt_tabledump(struct mrt_tabledump *tabledump) {
   non_zero_entry_counts = 0;
   for (i = 0; i < tabledump->peer_count; i++) {
     rib = &tabledump->peer_table[i].rib;
-    printf("analyse_mrt_tabledump, peer %d (%p)\n", i, rib);
     if (0 < rib->count) {
       non_zero_entry_counts++;
       aggregate_counts += rib->count;
@@ -96,16 +94,33 @@ void analyse_mrt_tabledump(struct mrt_tabledump *tabledump) {
   printf("min_entry_count: %d\n", min_entry_count);
   printf("non_zero_entry_counts: %d\n", non_zero_entry_counts);
   printf("aggregate_counts: %d\n", aggregate_counts);
+};
+
+void build_updates_mrt_tabledump(struct mrt_tabledump *tabledump, int requested_table_size) {
+  int i;
+  int large_table_count = 0;
   sort_peer_table(tabledump);
   for (i = 0; i < tabledump->peer_count; i++)
-    if (N_LARGE_TABLE <= tabledump->peer_table[i].rib.count)
+    if (requested_table_size <= tabledump->peer_table[i].rib.count)
       large_table_count++;
-  printf("large_table_count: %d (>%d)\n", large_table_count, N_LARGE_TABLE);
+  printf("large_table_count: %d (>%d)\n", large_table_count, requested_table_size);
   for (i = 0; i < large_table_count; i++) {
+    struct mrt_peer_record *peer = &tabledump->peer_table[i];
     printf("%2d: ", i);
-    show_mrt_peer_record(&tabledump->peer_table[i]);
-    build_updates(&tabledump->peer_table[i]);
-    printf(" entries %d allocated update size %d\n", tabledump->peer_table[i].rib.count, tabledump->peer_table[i].updates.length);
+    show_mrt_peer_record(peer);
+    build_updates(peer);
+    printf(" entries %d allocated update size %d\n", peer->rib.count, peer->updates.length);
+  };
+  for (i = large_table_count; i < tabledump->peer_count; i++) {
+    struct mrt_peer_record *peer = &tabledump->peer_table[i];
+
+    // leave print staments for diagnostics...!
+    // printf("freeing %2d: ", i);
+    // show_mrt_peer_record(peer);
+    assert(NULL == peer->updates.data);
+    assert(0 == peer->updates.length);
+    free(peer->rib.table);
+    // printf("\n");
   };
 };
 

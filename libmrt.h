@@ -34,7 +34,6 @@
 
 #define OFFSET_View_Name_Length (MIN_MRT_LENGTH + 4)
 #define OFFSET_View_Name (MIN_MRT_LENGTH + 6)
-#define N_LARGE_TABLE 500000
 
 struct chunk {
   void *data;
@@ -136,6 +135,7 @@ struct chunk get_updates(struct mrt_tabledump *rib, int index);
 struct mrt_tabledump *get_mrt_tabledump(struct chunk buf);
 void report_mrt_tabledump(struct mrt_tabledump *pt);
 void analyse_mrt_tabledump(struct mrt_tabledump *pt);
+void build_updates_mrt_tabledump(struct mrt_tabledump *tabledump, int requested_table_size);
 void sort_peer_table(struct mrt_tabledump *pt);
 
 static inline int compare_bgp4mp_peer(const void *a, const void *b) {
