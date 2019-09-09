@@ -116,7 +116,7 @@ void report_stats_bgp4mp_bgp(struct stats_bgp4mp_bgp *sp) {
   printf("    MED count %d\n", sp->med_count);
 };
 
-struct chunk get_one_bgp4mp(struct stats_bgp4mp_mrt *sp, int peer, int msg_number) {
+struct chunk get_one_bgp4mp(struct mrt_bgp4mp *sp, int peer, int msg_number) {
   int i;
   struct chunk rval = (struct chunk){NULL, 0};
   sort_bgp4mp_peers(sp);
@@ -142,7 +142,7 @@ struct chunk get_one_bgp4mp(struct stats_bgp4mp_mrt *sp, int peer, int msg_numbe
   return rval;
 };
 
-struct chunk *get_blocks_bgp4mp(struct stats_bgp4mp_mrt *sp, int nblocks) {
+struct chunk *get_blocks_bgp4mp(struct mrt_bgp4mp *sp, int nblocks) {
   int i;
   struct chunk *blocks = calloc(nblocks + 1, sizeof(struct chunk));
   sort_bgp4mp_peers(sp);
@@ -157,7 +157,7 @@ struct chunk *get_blocks_bgp4mp(struct stats_bgp4mp_mrt *sp, int nblocks) {
   return blocks;
 };
 
-void report_stats_bgp4mp_mrt(struct stats_bgp4mp_mrt *sp) {
+void report_mrt_bgp4mp(struct mrt_bgp4mp *sp) {
   int i;
   printf("\nMRT Record Statistics\n\n");
   printf("got %d MRT items\n", sp->mrt_msg_count);
@@ -259,7 +259,7 @@ void *initialise_bgp4mp_peer(struct bgp4mp_peer *peer){
     // sp->peers[pn].mrt_file_index = pn;
 };
 
-void mrt_parse(struct chunk buf, struct stats_bgp4mp_mrt *sp) {
+void mrt_parse(struct chunk buf, struct mrt_bgp4mp *sp) {
   struct chunk bgp_msg;
   uint16_t msg_type, msg_subtype;
   uint32_t msg_length, msg_timestamp;
