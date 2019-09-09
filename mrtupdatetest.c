@@ -7,7 +7,7 @@ int main(int argc, char **argv) {
 
   struct chunk buf, *blocks;
   struct msg_list_item *msg_list;
-  printf("MRTc\n");
+  printf("MRTc update test\n");
   struct bgp4mp_bgp_stats bgp_stats;
   struct mrt_bgp4mp mrt_bgp4mp_data;
 
