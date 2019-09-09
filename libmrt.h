@@ -1,3 +1,4 @@
+#include <arpa/inet.h>
 #include <stdint.h>
 #include <stdlib.h>
 #define MIN_MRT_LENGTH 12
@@ -31,6 +32,10 @@
 #define MULTI_EXIT_DISC 4
 #define LOCAL_PREF 5
 
+#define OFFSET_View_Name_Length (MIN_MRT_LENGTH + 4)
+#define OFFSET_View_Name (MIN_MRT_LENGTH + 6)
+#define N_LARGE_TABLE 500000
+
 struct chunk {
   void *data;
   int length;
@@ -39,6 +44,44 @@ struct chunk {
 struct msg_list_item {
   struct msg_list_item *next;
   struct chunk msg;
+};
+
+struct mrt_ribentry {
+  struct chunk prefix;
+  struct chunk path_attributes;
+};
+
+struct mrt_ribdump_peerrecord {
+  int count;
+  struct mrt_ribentry *table;
+};
+
+struct mrt_peerrecord {
+  int file_index;
+  uint32_t peer_as;
+  uint32_t peer_bgpid;
+  int is_ipv6;
+  union {
+    struct in_addr peer_ip;
+    struct in6_addr peer_ip6;
+  };
+  struct chunk updates;
+  struct mrt_ribdump_peerrecord rib;
+};
+
+struct mrt_ribdump {
+  int mrt_count;
+  int ipv4_unicast_count;
+  int non_ipv4_unicast_count;
+  int peer_count;
+  struct mrt_peerrecord *peer_table;
+  int count_PEER_INDEX_TABLE;
+  int count_RIB_IPV4_UNICAST;
+  int count_RIB_IPV4_MULTICAST;
+  int count_RIB_IPV6_UNICAST;
+  int count_RIB_IPV6_MULTICAST;
+  int count_RIB_GENERIC;
+  int max_peer_index;
 };
 
 struct stats_bgp4mp_mrt {
@@ -79,6 +122,14 @@ struct bgp4mp_peer {
   uint8_t peer_header[BGP4MP_PEER_HEADER_LENGTH];
   struct stats_bgp4mp_bgp bgp_stats;
 };
+
+void build_updates(struct mrt_peerrecord *pr);
+struct chunk get_updates(struct mrt_ribdump *rib, int index);
+
+struct mrt_ribdump *get_mrt_ribdump(struct chunk buf);
+void report_mrt_ribdump(struct mrt_ribdump *pt);
+void analyse_mrt_ribdump(struct mrt_ribdump *pt);
+void sort_peertable(struct mrt_ribdump *pt);
 
 static inline int compare_bgp4mp_peer(const void *a, const void *b) {
   struct bgp4mp_peer *_a = (struct bgp4mp_peer *)a;

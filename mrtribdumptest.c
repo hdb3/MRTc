@@ -5,7 +5,6 @@
 #include <unistd.h>
 
 #include "libmrt.h"
-#include "libmrtribdump.h"
 
 int main(int argc, char **argv) {
   struct chunk buf;

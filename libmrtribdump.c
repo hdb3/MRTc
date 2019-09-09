@@ -11,7 +11,6 @@
 #include <unistd.h>
 
 #include "libmrt.h"
-#include "libmrtribdump.h"
 
 struct chunk get_updates(struct mrt_ribdump *rib, int index) {
   assert(index < rib->peer_count);
