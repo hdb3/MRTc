@@ -71,7 +71,7 @@ struct chunk map_mrt_file(char *fname) {
   return (struct chunk){buf, sb.st_size};
 };
 
-void show_bgp4mp_peer_address(struct mrt_peerrecord *peer) {
+void show_bgp4mp_peer_address(struct mrt_peer_record *peer) {
   char peer_ip_str[INET6_ADDRSTRLEN];
   char local_ip_str[INET6_ADDRSTRLEN];
 
@@ -85,7 +85,7 @@ void show_bgp4mp_peer_address(struct mrt_peerrecord *peer) {
   printf("[ peer: as %-6d ip %-24s local: as %-6d ip %-24s]", peer->peer_as, peer_ip_str, peer->local_as, local_ip_str);
 };
 
-void show_bgp4mp_peer(struct mrt_peerrecord *peer) {
+void show_bgp4mp_peer(struct mrt_peer_record *peer) {
   int msg_count = count_msg_list(peer->bgp4mp.msg_list_head);
   assert(msg_count == peer->bgp4mp.update_count);
 
@@ -250,7 +250,7 @@ static inline int process_bgp_message(struct chunk msg, struct bgp4mp_bgp_stats 
   return is_update;
 };
 
-void *initialise_bgp4mp_peer(struct mrt_peerrecord *peer) {
+void *initialise_bgp4mp_peer(struct mrt_peer_record *peer) {
   void *header = peer->bgp4mp.peer_header;
   uint16_t address_family = getw16(header + 10);
   assert(0x0001 == address_family || 0x0002 == address_family);
@@ -341,15 +341,15 @@ void mrt_parse(struct chunk buf, struct mrt_bgp4mp *sp) {
       if (0 == found) {
         sp->peer_count++;
         assert(1 == sp->peer_count - pn);
-        sp->peer_table = realloc(sp->peer_table, sp->peer_count * sizeof(struct mrt_peerrecord));
-        struct mrt_peerrecord *peer = &sp->peer_table[pn];
-        memset(peer, 0, sizeof(struct mrt_peerrecord));
+        sp->peer_table = realloc(sp->peer_table, sp->peer_count * sizeof(struct mrt_peer_record));
+        struct mrt_peer_record *peer = &sp->peer_table[pn];
+        memset(peer, 0, sizeof(struct mrt_peer_record));
         peer->mrt_file_index = pn;
         memcpy(&peer->bgp4mp.peer_header, raw_bgp4mp_header, BGP4MP_header_length);
         initialise_bgp4mp_peer(peer);
       };
       // pp is a convenience pointer for the current peer record
-      struct mrt_peerrecord *pp = &sp->peer_table[pn];
+      struct mrt_peer_record *pp = &sp->peer_table[pn];
 
       pp->bgp4mp.rec_count++;
       if (msg_subtype == BGP4MP_MESSAGE_AS4) {

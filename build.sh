@@ -1,3 +1,3 @@
-clang-format -i mrttest.c libmrt.c libmrt.h mrtribdumptest.c libmrtribdump.c libmrtribdump.h
+clang-format -i mrttest.c libmrt.c libmrt.h mrttabledumptest.c libmrttabledump.c
 gcc -g -O2 -o mrttest  mrttest.c libmrt.c
-gcc -g -O2 -o mrtribdumptest mrtribdumptest.c libmrtribdump.c libmrt.c
+gcc -g -O2 -o mrttabledumptest mrttabledumptest.c libmrttabledump.c libmrt.c

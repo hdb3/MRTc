@@ -8,14 +8,14 @@
 
 int main(int argc, char **argv) {
   struct chunk buf;
-  printf("MRTribdump\n");
-  struct mrt_ribdump *rib = NULL;
+  printf("MRTtabledump\n");
+  struct mrt_tabledump *rib = NULL;
 
   assert(1 < argc);
   buf = map_mrt_file(argv[1]);
-  rib = get_mrt_ribdump(buf);
-  report_mrt_ribdump(rib);
-  analyse_mrt_ribdump(rib);
+  rib = get_mrt_tabledump(buf);
+  report_mrt_tabledump(rib);
+  analyse_mrt_tabledump(rib);
   unmap_mrt_file(buf);
   if (3 == argc) {
     int peer_index;
@@ -24,7 +24,7 @@ int main(int argc, char **argv) {
       exit(1);
     } else {
       struct chunk buf = get_updates(rib, peer_index);
-      write_chunk("ribdump.bin", buf);
+      write_chunk("tabledump.bin", buf);
     };
   };
 };
