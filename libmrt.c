@@ -254,6 +254,11 @@ static inline int process_bgp_message(struct chunk msg, struct stats_bgp4mp_bgp 
   return is_update;
 };
 
+void *initialise_bgp4mp_peer(struct bgp4mp_peer *peer){
+    //memset(&sp->peers[pn], 0, sizeof(struct bgp4mp_peer));
+    // sp->peers[pn].mrt_file_index = pn;
+};
+
 void mrt_parse(struct chunk buf, struct stats_bgp4mp_mrt *sp) {
   struct chunk bgp_msg;
   uint16_t msg_type, msg_subtype;
@@ -313,8 +318,9 @@ void mrt_parse(struct chunk buf, struct stats_bgp4mp_mrt *sp) {
       assert((1 == afi) || (2 == afi));
       // lookup the bgp4mp common header in the raw peer table
       found = 0;
+      void *raw_bgp4mp_header = ptr + min_mrt_length;
       for (pn = 0; pn < peers; pn++)
-        if (0 == memcmp(ptr + min_mrt_length, &sp->peers[pn].peer_header, BGP4MP_header_length)) {
+        if (0 == memcmp(raw_bgp4mp_header, &sp->peers[pn].peer_header, BGP4MP_header_length)) {
           found = 1;
           break;
         };
@@ -328,11 +334,14 @@ void mrt_parse(struct chunk buf, struct stats_bgp4mp_mrt *sp) {
 
       if (0 == found) {
         peers++;
-        pn = peers - 1;
+        assert(1 == peers - pn);
+        //pn = peers - 1;
         sp->peers = realloc(sp->peers, peers * sizeof(struct bgp4mp_peer));
-        memset(&sp->peers[pn], 0, sizeof(struct bgp4mp_peer));
-        sp->peers[pn].mrt_file_index = pn;
-        memcpy(&sp->peers[pn].peer_header, ptr + min_mrt_length, BGP4MP_header_length);
+        struct bgp4mp_peer *peer = &sp->peers[pn];
+        memset(peer, 0, sizeof(struct bgp4mp_peer));
+        peer->mrt_file_index = pn;
+        memcpy(&peer->peer_header, raw_bgp4mp_header, BGP4MP_header_length);
+        initialise_bgp4mp_peer(peer);
       };
       // pp is a convenience pointer for the current peer record
       struct bgp4mp_peer *pp = &sp->peers[pn];
