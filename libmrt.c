@@ -14,24 +14,31 @@
 
 #define INFINITY 0x7ffff000
 
-struct chunk block_builder(struct msg_list_item *msg_list) {
+static inline struct chunk block_builder(struct msg_list_item *msg_list) {
   long int length = 0;
   struct msg_list_item *p;
   int offset;
 
   p = msg_list;
   while (p != NULL) {
-    length += p->msg.length;
+    length += p->msg.length + (ADD_LOCAL_PREF ? 7 : 0);
     p = p->next;
   };
+  // NOTE - the assigned length assumes all messages get local pref added - but some may not be eligible e.g. withdraw
+  // however, allocating too much memory is nota problem as long as we trim it or something when we finish....
   assert(length < INFINITY);
   void *buffer = malloc(length);
   assert(NULL != buffer);
   p = msg_list;
   offset = 0;
   while (p != NULL) {
+    struct chunk pre = p->msg;
+    if (ADD_LOCAL_PREF)
+      p->msg = update_fixup_localpreference(100, p->msg);
+    assert(pre.length + 7 == p->msg.length);
     memcpy(buffer + offset, p->msg.data, p->msg.length);
     offset += p->msg.length;
+    assert(offset <= length);
     p = p->next;
   };
   return (struct chunk){buffer, offset};

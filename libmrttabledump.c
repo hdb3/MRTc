@@ -11,12 +11,40 @@
 #include <unistd.h>
 
 #include "libmrt.h"
-#define ADD_LOCAL_PREF 1
 
-struct chunk fixup_localpreference(uint32_t local_preference, struct chunk path_attributes);
 struct chunk get_updates(struct mrt_tabledump *rib, int index) {
   assert(index < rib->peer_count);
   return rib->peer_table[index].tabledump_updates;
+};
+
+static unsigned char marker[16] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+struct chunk build_update(void *target, const struct chunk withdrawn, const struct chunk path_attributes, const struct chunk nlri) {
+  void *base = target;
+
+  uint16_t length = 23 + withdrawn.length + path_attributes.length + nlri.length;
+  memcpy(target, marker, 16);
+  target += 16;
+
+  *(uint16_t *)target = __bswap_16(length);
+  target += 2;
+
+  *(uint8_t *)target = 2; // type == update
+  target += 1;
+
+  *(uint16_t *)target = __bswap_16(withdrawn.length);
+  target += 2;
+  memcpy(target, withdrawn.data, withdrawn.length);
+  target += withdrawn.length;
+
+  *(uint16_t *)target = __bswap_16(path_attributes.length);
+  target += 2;
+  memcpy(target, path_attributes.data, path_attributes.length);
+  target += path_attributes.length;
+
+  memcpy(target, nlri.data, nlri.length);
+  target += nlri.length;
+
+  return (struct chunk){base, target - base};
 };
 
 static uint8_t _buf_fixup_localpreference[4096];
@@ -52,10 +80,39 @@ struct chunk fixup_localpreference(uint32_t local_preference, struct chunk path_
   return (struct chunk){_buf_fixup_localpreference, path_attributes.length + 7};
 };
 
+static uint8_t _buf_update_fixup_localpreference[4096];
+struct chunk update_fixup_localpreference(uint32_t local_preference, struct chunk update) {
+
+  assert(18 < update.length);
+  uint16_t length = getw16(update.data + 16);
+  uint8_t typecode = *(uint8_t *)(update.data + 18);
+  if (2 != typecode)
+    return update;
+
+  // if there are any pathattributes then we have work to do, otherwise not
+  // the work consists in copying the three sections NLRI, Attributes and Withdrawn NLRI
+  // having modified the section attributes using the function fixup_localpreference
+  // for ease of understanding we deconstruct the three sections as chunks
+  // and then compose them.
+  // NOTE - the input is unaffected, the eventual output lies in static buffer (non-reentrant).
+
+  uint16_t withdraw_length = getw16(update.data + 19);
+  uint16_t pathattributes_length = getw16(update.data + 21 + withdraw_length);
+  if (0 == pathattributes_length)
+    return update;
+
+  uint16_t nlri_length = length - withdraw_length - pathattributes_length - 23;
+  assert(length >= 23 + withdraw_length + pathattributes_length); // sanity check
+  struct chunk withdrawn = (struct chunk){update.data + 21, withdraw_length};
+  struct chunk pathattributes = (struct chunk){update.data + 23 + withdraw_length, pathattributes_length};
+  struct chunk nlri = (struct chunk){update.data + 23 + withdraw_length + pathattributes_length, nlri_length};
+  struct chunk updated_pathattributes = fixup_localpreference(local_preference, pathattributes);
+  return build_update(_buf_update_fixup_localpreference, withdrawn, updated_pathattributes, nlri);
+};
+
 void build_tabledump_updates(struct mrt_peer_record *pr) {
   long int i, length;
   void *p;
-  unsigned char marker[16] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
   uint16_t attributes_length, update_length;
 
   length = 0;

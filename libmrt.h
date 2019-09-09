@@ -35,6 +35,8 @@
 #define OFFSET_View_Name_Length (MIN_MRT_LENGTH + 4)
 #define OFFSET_View_Name (MIN_MRT_LENGTH + 6)
 
+#define ADD_LOCAL_PREF 1
+
 struct chunk {
   void *data;
   int length;
@@ -174,3 +176,4 @@ int count_msg_list(struct msg_list_item *list);
 struct msg_list_item *filter_msgs(struct msg_list_item *list, struct bgp4mp_bgp_stats *spb);
 void show_mrt_peer_record(struct mrt_peer_record *peer);
 struct chunk get_blocks_bgp4mp_peer(struct mrt_bgp4mp *sp, uint32_t as, struct in_addr ip);
+struct chunk update_fixup_localpreference(uint32_t local_preference, struct chunk update);
