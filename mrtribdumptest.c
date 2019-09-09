@@ -18,6 +18,14 @@ int main(int argc, char **argv) {
   report_mrtrib(rib);
   analyse_mrtrib(rib);
   unmap_mrt_file(buf);
-  buf = get_updates(rib, 0);
-  write_chunk("ribdump.bin", buf);
+  if (3 == argc) {
+    int peer_index;
+    if (1 != sscanf(argv[2], "%d", &peer_index)) {
+      printf("could not parse argv[2] for peer_index");
+      exit(1);
+    } else {
+      struct chunk buf = get_updates(rib, peer_index);
+      write_chunk("ribdump.bin", buf);
+    };
+  };
 };
