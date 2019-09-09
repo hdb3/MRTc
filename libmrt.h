@@ -56,7 +56,7 @@ struct mrt_ribdump_peerrecord {
   struct mrt_ribentry *table;
 };
 
-struct stats_bgp4mp_bgp {
+struct bgp4mp_bgp_stats {
   int msg_count;
   int open_count;
   int all_update_count;
@@ -74,17 +74,17 @@ struct stats_bgp4mp_bgp {
 };
 
 struct bgp4mp_peer {
-  int mrt_file_index;
-  int mrt_msg_count;
-  int mrt_bgp_msg_count;
-  int bgp_update_count;
-  struct msg_list_item *msg_list_head, *msg_list_tail;
-  uint8_t peer_header[BGP4MP_PEER_HEADER_LENGTH];
-  struct stats_bgp4mp_bgp bgp_stats;
+  int mrt_file_index; // will retire
+  int bgp4mp_rec_count;
+  int bgp4mp_bgp_msg_count;
+  int bgp4mp_update_count;
+  struct msg_list_item *bgp4mp_msg_list_head, *bgp4mp_msg_list_tail;
+  uint8_t bgp4mp_peer_header[BGP4MP_PEER_HEADER_LENGTH];
+  struct bgp4mp_bgp_stats bgp_stats;
 };
 
 struct mrt_peerrecord {
-  int file_index;
+  int mrt_file_index;
   uint32_t peer_as;
   uint32_t peer_bgpid;
   int is_ipv6;
@@ -93,7 +93,10 @@ struct mrt_peerrecord {
     struct in6_addr peer_ip6;
   };
   struct chunk updates;
-  struct mrt_ribdump_peerrecord rib;
+  union {
+    struct mrt_ribdump_peerrecord rib;
+    struct bgp4mp_peer bgp4mp;
+  };
 };
 
 struct mrt_ribdump {
@@ -111,7 +114,6 @@ struct mrt_ribdump {
   int max_peer_index;
 };
 
-// struct stats_bgp4mp_mrt {
 struct mrt_bgp4mp {
   int mrt_msg_count;
   int mrt_bgp_msg_count;
@@ -135,14 +137,14 @@ void sort_peertable(struct mrt_ribdump *pt);
 static inline int compare_bgp4mp_peer(const void *a, const void *b) {
   struct bgp4mp_peer *_a = (struct bgp4mp_peer *)a;
   struct bgp4mp_peer *_b = (struct bgp4mp_peer *)b;
-  return (_b->bgp_update_count - _a->bgp_update_count);
+  return (_b->bgp4mp_update_count - _a->bgp4mp_update_count);
 };
 
 static inline void sort_bgp4mp_peers(struct mrt_bgp4mp *sp) {
   qsort(sp->peers, sp->peer_count, sizeof(struct bgp4mp_peer), compare_bgp4mp_peer);
 };
 
-void report_stats_bgp4mp_bgp(struct stats_bgp4mp_bgp *sp);
+void report_bgp4mp_bgp_stats(struct bgp4mp_bgp_stats *sp);
 void report_mrt_bgp4mp(struct mrt_bgp4mp *sp);
 
 static inline uint16_t getw16(void *p) { return __bswap_16(*(uint16_t *)p); };
@@ -159,4 +161,4 @@ struct chunk *get_blocks_bgp4mp(struct mrt_bgp4mp *sp, int nblocks);
 struct chunk get_one_bgp4mp(struct mrt_bgp4mp *sp, int peer, int msg_number);
 
 int count_msg_list(struct msg_list_item *list);
-struct msg_list_item *filter_msgs(struct msg_list_item *list, struct stats_bgp4mp_bgp *spb);
+struct msg_list_item *filter_msgs(struct msg_list_item *list, struct bgp4mp_bgp_stats *spb);

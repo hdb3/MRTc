@@ -90,17 +90,17 @@ void show_bgp4mp_peer_header(void *p) {
 };
 
 void show_bgp4mp_peer(struct bgp4mp_peer *peer) {
-  int msg_count = count_msg_list(peer->msg_list_head);
-  assert(msg_count == peer->bgp_update_count);
+  int msg_count = count_msg_list(peer->bgp4mp_msg_list_head);
+  assert(msg_count == peer->bgp4mp_update_count);
 
   printf("peer #%-3d ", peer->mrt_file_index);
 
-  show_bgp4mp_peer_header(peer->peer_header);
+  show_bgp4mp_peer_header(peer->bgp4mp_peer_header);
   printf(" MRT records: %-7d  BGP msgs: %-7d  filtered Updates: %-7d\n",
-         peer->mrt_msg_count, peer->mrt_bgp_msg_count, peer->bgp_update_count);
+         peer->bgp4mp_rec_count, peer->bgp4mp_bgp_msg_count, peer->bgp4mp_update_count);
 };
 
-void report_stats_bgp4mp_bgp(struct stats_bgp4mp_bgp *sp) {
+void report_bgp4mp_bgp_stats(struct bgp4mp_bgp_stats *sp) {
   printf("\nBGP Message Statistics\n\n");
   printf("Opens %d\n", sp->open_count);
   printf("Notifications %d\n", sp->notification_count);
@@ -123,12 +123,12 @@ struct chunk get_one_bgp4mp(struct mrt_bgp4mp *sp, int peer, int msg_number) {
   if (peer >= sp->peer_count) {
     printf("get_one_bgp4mp: *** WARNING *** insufficient peers, cannot continue (%d/%d)\n", peer, sp->peer_count);
     exit(1);
-  } else if (msg_number > sp->peers[peer].bgp_update_count) {
-    printf("get_one_bgp4mp: *** WARNING *** insufficient msgs, cannot continue (%d/%d)\n", msg_number, sp->peers[peer].bgp_update_count);
+  } else if (msg_number > sp->peers[peer].bgp4mp_update_count) {
+    printf("get_one_bgp4mp: *** WARNING *** insufficient msgs, cannot continue (%d/%d)\n", msg_number, sp->peers[peer].bgp4mp_update_count);
     exit(1);
   } else {
 
-    struct msg_list_item *list = sp->peers[i].msg_list_head;
+    struct msg_list_item *list = sp->peers[i].bgp4mp_msg_list_head;
     i = 0;
     while (list != NULL) {
       if (msg_number == i) {
@@ -152,7 +152,7 @@ struct chunk *get_blocks_bgp4mp(struct mrt_bgp4mp *sp, int nblocks) {
     if (i >= sp->peer_count) {
       blocks[i] = (struct chunk){NULL, 0}; // redundant due to calloc...
     } else {
-      blocks[i] = block_builder(sp->peers[i].msg_list_head);
+      blocks[i] = block_builder(sp->peers[i].bgp4mp_msg_list_head);
     };
   return blocks;
 };
@@ -173,7 +173,7 @@ void report_mrt_bgp4mp(struct mrt_bgp4mp *sp) {
     show_bgp4mp_peer(&sp->peers[i]);
 };
 
-static inline void process_path_attribute(uint8_t type_code, struct chunk msg, struct stats_bgp4mp_bgp *sp) {
+static inline void process_path_attribute(uint8_t type_code, struct chunk msg, struct bgp4mp_bgp_stats *sp) {
   if (MULTI_EXIT_DISC == type_code) {
     sp->med_count++;
   } else if (LOCAL_PREF == type_code) {
@@ -181,7 +181,7 @@ static inline void process_path_attribute(uint8_t type_code, struct chunk msg, s
   };
 };
 
-static inline void process_path_attributes(struct chunk msg, struct stats_bgp4mp_bgp *sp) {
+static inline void process_path_attributes(struct chunk msg, struct bgp4mp_bgp_stats *sp) {
   void *p = msg.data;
   void *limit = msg.data + msg.length;
   uint8_t flags, type_code;
@@ -201,7 +201,7 @@ static inline void process_path_attributes(struct chunk msg, struct stats_bgp4mp
   assert(p == limit);
 };
 
-static inline int process_bgp_message(struct chunk msg, struct stats_bgp4mp_bgp *sp) {
+static inline int process_bgp_message(struct chunk msg, struct bgp4mp_bgp_stats *sp) {
   assert(18 < msg.length);
   uint16_t length = getw16(msg.data + 16);
   uint8_t typecode = *(uint8_t *)(msg.data + 18);
@@ -320,7 +320,7 @@ void mrt_parse(struct chunk buf, struct mrt_bgp4mp *sp) {
       found = 0;
       void *raw_bgp4mp_header = ptr + min_mrt_length;
       for (pn = 0; pn < peers; pn++)
-        if (0 == memcmp(raw_bgp4mp_header, &sp->peers[pn].peer_header, BGP4MP_header_length)) {
+        if (0 == memcmp(raw_bgp4mp_header, &sp->peers[pn].bgp4mp_peer_header, BGP4MP_header_length)) {
           found = 1;
           break;
         };
@@ -340,17 +340,17 @@ void mrt_parse(struct chunk buf, struct mrt_bgp4mp *sp) {
         struct bgp4mp_peer *peer = &sp->peers[pn];
         memset(peer, 0, sizeof(struct bgp4mp_peer));
         peer->mrt_file_index = pn;
-        memcpy(&peer->peer_header, raw_bgp4mp_header, BGP4MP_header_length);
+        memcpy(&peer->bgp4mp_peer_header, raw_bgp4mp_header, BGP4MP_header_length);
         initialise_bgp4mp_peer(peer);
       };
       // pp is a convenience pointer for the current peer record
       struct bgp4mp_peer *pp = &sp->peers[pn];
 
-      pp->mrt_msg_count++;
+      pp->bgp4mp_rec_count++;
       if (msg_subtype == BGP4MP_MESSAGE_AS4) {
         // capture the BGP4MP message payload)
         struct chunk msg_chunk = (struct chunk){ptr + min_mrt_length + BGP4MP_header_length, msg_length - BGP4MP_header_length - ET_extension};
-        pp->mrt_bgp_msg_count++;
+        pp->bgp4mp_bgp_msg_count++;
         sp->mrt_bgp_msg_count++;
 
         struct msg_list_item *itemg = calloc(1, sizeof(struct msg_list_item));
@@ -370,12 +370,12 @@ void mrt_parse(struct chunk buf, struct mrt_bgp4mp *sp) {
         if (bgp_msg_status) { // we only want update messages in the list, so skip if not Update
           struct msg_list_item *itemp = calloc(1, sizeof(struct msg_list_item));
           itemp->msg = msg_chunk;
-          if (NULL == pp->msg_list_head)
-            pp->msg_list_head = itemp;
+          if (NULL == pp->bgp4mp_msg_list_head)
+            pp->bgp4mp_msg_list_head = itemp;
           else
-            pp->msg_list_tail->next = itemp;
-          pp->msg_list_tail = itemp;
-          pp->bgp_update_count++;
+            pp->bgp4mp_msg_list_tail->next = itemp;
+          pp->bgp4mp_msg_list_tail = itemp;
+          pp->bgp4mp_update_count++;
         };
       } else if (msg_subtype == BGP4MP_STATE_CHANGE_AS4) {
         sp->state_changes++;
@@ -406,7 +406,7 @@ int count_msg_list(struct msg_list_item *list) {
   return i;
 };
 
-struct msg_list_item *filter_msgs(struct msg_list_item *list, struct stats_bgp4mp_bgp *sp) {
+struct msg_list_item *filter_msgs(struct msg_list_item *list, struct bgp4mp_bgp_stats *sp) {
   // filter list of non-compliant chunks based on process_bgp_message return
   // value builds a new list with a dummy head, which is discarded on exit
   struct msg_list_item head = {NULL, (struct chunk){NULL, 0}};

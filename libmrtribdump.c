@@ -61,14 +61,14 @@ void show_mrt_peerrecord(struct mrt_peerrecord *peer) {
     inet_ntop(AF_INET6, &peer->peer_ip6, peer_ip_str, INET6_ADDRSTRLEN);
   else
     inet_ntop(AF_INET, &peer->peer_ip, peer_ip_str, sizeof(struct sockaddr));
-  printf("[%d %s AS%-6d ", peer->file_index, peer_ip_str, peer->peer_as);
+  printf("[%d %s AS%-6d ", peer->mrt_file_index, peer_ip_str, peer->peer_as);
   printf("%s]", inet_ntoa((struct in_addr){peer->peer_bgpid}));
 };
 
 void sort_peertable(struct mrt_ribdump *ribdump) {
   int i = 0;
   for (i = 0; i < ribdump->peer_count; i++)
-    ribdump->peer_table[i].file_index = i;
+    ribdump->peer_table[i].mrt_file_index = i;
 
   qsort(ribdump->peer_table, ribdump->peer_count, sizeof(struct mrt_peerrecord), compare_mrt_peerrecord);
 };
@@ -256,7 +256,7 @@ uint16_t parse_mrt_TABLE_DUMP_V2(struct mrt_ribdump *rib, struct chunk buf) {
       rib->peer_table[i].peer_as = getw32(peer_entries + 5 + ip_addr_length);
 
     rib->peer_table[i].is_ipv6 = (16 == ip_addr_length);
-    rib->peer_table[i].file_index = i;
+    rib->peer_table[i].mrt_file_index = i;
     rib->peer_table[i].peer_bgpid = __bswap_32(getw32(peer_entries + 1));
 
     if (rib->peer_table[i].is_ipv6) // IPv6 peer may still have IPv4 data!!

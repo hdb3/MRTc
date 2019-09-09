@@ -8,7 +8,7 @@ int main(int argc, char **argv) {
   struct chunk buf, *blocks;
   struct msg_list_item *msg_list;
   printf("MRTc\n");
-  struct stats_bgp4mp_bgp bgp_stats;
+  struct bgp4mp_bgp_stats bgp_stats;
   struct mrt_bgp4mp mrt_bgp4mp_data;
 
   assert(1 < argc);
@@ -19,7 +19,7 @@ int main(int argc, char **argv) {
   msg_list = filter_msgs(msg_list, &bgp_stats);
   printf("got %d messages after filtering\n", count_msg_list(msg_list));
   report_mrt_bgp4mp(&mrt_bgp4mp_data);
-  report_stats_bgp4mp_bgp(&bgp_stats);
+  report_bgp4mp_bgp_stats(&bgp_stats);
   if (2 == argc) {
     blocks = get_blocks_bgp4mp(&mrt_bgp4mp_data, 1);
     write_chunk("updates.bin", blocks[0]);
