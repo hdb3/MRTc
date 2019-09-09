@@ -74,12 +74,11 @@ struct bgp4mp_bgp_stats {
 };
 
 struct bgp4mp_peer {
-  int mrt_file_index; // will retire
-  int bgp4mp_rec_count;
-  int bgp4mp_bgp_msg_count;
-  int bgp4mp_update_count;
-  struct msg_list_item *bgp4mp_msg_list_head, *bgp4mp_msg_list_tail;
-  uint8_t bgp4mp_peer_header[BGP4MP_PEER_HEADER_LENGTH];
+  int rec_count;
+  int bgp_msg_count;
+  int update_count;
+  struct msg_list_item *msg_list_head, *msg_list_tail;
+  uint8_t peer_header[BGP4MP_PEER_HEADER_LENGTH];
   struct bgp4mp_bgp_stats bgp_stats;
 };
 
@@ -87,7 +86,6 @@ struct mrt_peerrecord {
   int mrt_file_index;
   uint32_t peer_as;
   uint32_t peer_bgpid;
-  int is_ipv6;
   union {
     struct in_addr peer_ip;
     struct in6_addr peer_ip6;
@@ -97,6 +95,7 @@ struct mrt_peerrecord {
     struct mrt_ribdump_peerrecord rib;
     struct bgp4mp_peer bgp4mp;
   };
+  int8_t is_ipv6;
 };
 
 struct mrt_ribdump {
@@ -123,7 +122,7 @@ struct mrt_bgp4mp {
   struct msg_list_item *msg_list_head, *msg_list_tail;
   int msg_list_length;
   int peer_count;
-  struct bgp4mp_peer *peers;
+  struct mrt_peerrecord *peers;
 };
 
 void build_updates(struct mrt_peerrecord *pr);
@@ -135,13 +134,13 @@ void analyse_mrt_ribdump(struct mrt_ribdump *pt);
 void sort_peertable(struct mrt_ribdump *pt);
 
 static inline int compare_bgp4mp_peer(const void *a, const void *b) {
-  struct bgp4mp_peer *_a = (struct bgp4mp_peer *)a;
-  struct bgp4mp_peer *_b = (struct bgp4mp_peer *)b;
-  return (_b->bgp4mp_update_count - _a->bgp4mp_update_count);
+  struct mrt_peerrecord *_a = (struct mrt_peerrecord *)a;
+  struct mrt_peerrecord *_b = (struct mrt_peerrecord *)b;
+  return (_b->bgp4mp.update_count - _a->bgp4mp.update_count);
 };
 
 static inline void sort_bgp4mp_peers(struct mrt_bgp4mp *sp) {
-  qsort(sp->peers, sp->peer_count, sizeof(struct bgp4mp_peer), compare_bgp4mp_peer);
+  qsort(sp->peers, sp->peer_count, sizeof(struct mrt_peerrecord), compare_bgp4mp_peer);
 };
 
 void report_bgp4mp_bgp_stats(struct bgp4mp_bgp_stats *sp);

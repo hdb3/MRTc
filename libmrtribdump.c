@@ -245,26 +245,29 @@ uint16_t parse_mrt_TABLE_DUMP_V2(struct mrt_ribdump *rib, struct chunk buf) {
   peer_entries = buf.data + OFFSET_View_Name_Length + 4 + mrt_view_name_length;
   peer_entries_limit = peer_entries + buf.length;
   for (i = 0; i < mrt_peer_count; i++) {
+    struct mrt_peerrecord *peer = &rib->peer_table[i];
     assert(peer_entries_limit > peer_entries);
     peer_type = *(uint8_t *)peer_entries;
-    ip_addr_length = (0x01 & peer_type) ? 16 : 4;
+    peer->is_ipv6 = 0x01 & peer_type;
+    ip_addr_length = peer->is_ipv6 ? 16 : 4;
+    //ip_addr_length = (0x01 & peer_type) ? 16 : 4;
     as_addr_length = (0x02 & peer_type) ? 4 : 2;
 
     if (2 == as_addr_length) // 16 bit peer AS, may still be operating in AS4 sessions??
-      rib->peer_table[i].peer_as = getw16(peer_entries + 5 + ip_addr_length);
+      peer->peer_as = getw16(peer_entries + 5 + ip_addr_length);
     else
-      rib->peer_table[i].peer_as = getw32(peer_entries + 5 + ip_addr_length);
+      peer->peer_as = getw32(peer_entries + 5 + ip_addr_length);
 
-    rib->peer_table[i].is_ipv6 = (16 == ip_addr_length);
-    rib->peer_table[i].mrt_file_index = i;
-    rib->peer_table[i].peer_bgpid = __bswap_32(getw32(peer_entries + 1));
+    //peer->is_ipv6 = (16 == ip_addr_length);
+    peer->mrt_file_index = i;
+    peer->peer_bgpid = __bswap_32(getw32(peer_entries + 1));
 
-    if (rib->peer_table[i].is_ipv6) // IPv6 peer may still have IPv4 data!!
-      rib->peer_table[i].peer_ip6 = *(struct in6_addr *)(peer_entries + 5);
+    if (peer->is_ipv6) // IPv6 peer may still have IPv4 data!!
+      peer->peer_ip6 = *(struct in6_addr *)(peer_entries + 5);
     else
-      rib->peer_table[i].peer_ip = (struct in_addr){__bswap_32(getw32(peer_entries + 5))};
+      peer->peer_ip = (struct in_addr){__bswap_32(getw32(peer_entries + 5))};
 
-    show_mrt_peerrecord(&rib->peer_table[i]);
+    show_mrt_peerrecord(peer);
     printf("\n");
     peer_entries += 5 + ip_addr_length + as_addr_length;
   };
