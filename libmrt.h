@@ -134,6 +134,7 @@ void build_tabledump_updates(struct mrt_peer_record *pr);
 void build_mrt_tabledump_tabledump_updates(struct mrt_tabledump *tabledump, int requested_table_size);
 
 void build_mrt_tabledump_bgp4mp_updates(struct mrt_tabledump *tabledump, struct mrt_bgp4mp *sp);
+void write_mrt_tabledump_all_updates(struct mrt_tabledump *tabledump);
 
 struct chunk get_updates(struct mrt_tabledump *rib, int index);
 

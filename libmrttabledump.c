@@ -96,6 +96,22 @@ void analyse_mrt_tabledump(struct mrt_tabledump *tabledump) {
   printf("aggregate_counts: %d\n", aggregate_counts);
 };
 
+void write_mrt_tabledump_all_updates(struct mrt_tabledump *tabledump) {
+  int i;
+  char fname[128];
+  //char fname[] = "updates.xxx.bin";
+  for (i = 0; i < tabledump->peer_count; i++) {
+    struct mrt_peer_record *peer = &tabledump->peer_table[i];
+    printf("writing stream files %2d: ", i);
+    show_mrt_peer_record(peer);
+    printf(" update size %d\n", peer->bgp4mp_updates.length);
+    sprintf(fname, "updates.%02d.bin", i);
+    write_chunk(fname, peer->bgp4mp_updates);
+    sprintf(fname, "table.%02d.bin", i);
+    write_chunk(fname, peer->tabledump_updates);
+  };
+};
+
 void build_mrt_tabledump_bgp4mp_updates(struct mrt_tabledump *tabledump, struct mrt_bgp4mp *sp) {
   int i;
   for (i = 0; i < tabledump->peer_count; i++) {
