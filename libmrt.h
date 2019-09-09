@@ -94,7 +94,8 @@ struct mrt_peer_record {
     struct in_addr local_ip;
     struct in6_addr local_ip6;
   };
-  struct chunk updates;
+  struct chunk tabledump_updates;
+  struct chunk bgp4mp_updates;
   union {
     struct mrt_tabledump_peer_record rib;
     struct bgp4mp_peer bgp4mp;
@@ -129,7 +130,7 @@ struct mrt_bgp4mp {
   struct mrt_peer_record *peer_table;
 };
 
-void build_updates(struct mrt_peer_record *pr);
+void build_tabledump_updates(struct mrt_peer_record *pr);
 struct chunk get_updates(struct mrt_tabledump *rib, int index);
 
 struct mrt_tabledump *get_mrt_tabledump(struct chunk buf);

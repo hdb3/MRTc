@@ -14,10 +14,10 @@
 
 struct chunk get_updates(struct mrt_tabledump *rib, int index) {
   assert(index < rib->peer_count);
-  return rib->peer_table[index].updates;
+  return rib->peer_table[index].tabledump_updates;
 };
 
-void build_updates(struct mrt_peer_record *pr) {
+void build_tabledump_updates(struct mrt_peer_record *pr) {
   long int i, length;
   void *p;
   unsigned char marker[16] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
@@ -28,8 +28,8 @@ void build_updates(struct mrt_peer_record *pr) {
     length += 23 + pr->rib.table[i].prefix.length + pr->rib.table[i].path_attributes.length;
   p = malloc(length);
   assert(NULL != p);
-  pr->updates.length = length;
-  pr->updates.data = p;
+  pr->tabledump_updates.length = length;
+  pr->tabledump_updates.data = p;
   for (i = 0; i < pr->rib.count; i++) {
     struct mrt_ribentry *re = &pr->rib.table[i];
     memcpy(p, marker, 16);
@@ -43,7 +43,7 @@ void build_updates(struct mrt_peer_record *pr) {
     memcpy(p + 23 + attributes_length, re->prefix.data, re->prefix.length);
     p += update_length;
   };
-  assert(p == pr->updates.length + pr->updates.data);
+  assert(p == pr->tabledump_updates.length + pr->tabledump_updates.data);
 };
 
 // there should be a simple cast over the function signature which
@@ -108,8 +108,8 @@ void build_updates_mrt_tabledump(struct mrt_tabledump *tabledump, int requested_
     struct mrt_peer_record *peer = &tabledump->peer_table[i];
     printf("%2d: ", i);
     show_mrt_peer_record(peer);
-    build_updates(peer);
-    printf(" entries %d allocated update size %d\n", peer->rib.count, peer->updates.length);
+    build_tabledump_updates(peer);
+    printf(" entries %d allocated update size %d\n", peer->rib.count, peer->tabledump_updates.length);
   };
   for (i = large_table_count; i < tabledump->peer_count; i++) {
     struct mrt_peer_record *peer = &tabledump->peer_table[i];
@@ -117,8 +117,8 @@ void build_updates_mrt_tabledump(struct mrt_tabledump *tabledump, int requested_
     // leave print staments for diagnostics...!
     // printf("freeing %2d: ", i);
     // show_mrt_peer_record(peer);
-    assert(NULL == peer->updates.data);
-    assert(0 == peer->updates.length);
+    assert(NULL == peer->tabledump_updates.data);
+    assert(0 == peer->tabledump_updates.length);
     free(peer->rib.table);
     // printf("\n");
   };
