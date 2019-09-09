@@ -11,10 +11,45 @@
 #include <unistd.h>
 
 #include "libmrt.h"
+#define ADD_LOCAL_PREF 1
 
+struct chunk fixup_localpreference(uint32_t local_preference, struct chunk path_attributes);
 struct chunk get_updates(struct mrt_tabledump *rib, int index) {
   assert(index < rib->peer_count);
   return rib->peer_table[index].tabledump_updates;
+};
+
+static uint8_t _buf_fixup_localpreference[4096];
+static uint8_t local_preference_buf[7] = {0x40, 5, 4, 0, 0, 0, 0};
+struct chunk fixup_localpreference(uint32_t local_preference, struct chunk path_attributes) {
+  void *p = path_attributes.data;
+  void *limit = path_attributes.data + path_attributes.length;
+  uint8_t flags, type_code;
+  uint16_t length;
+  *(uint32_t *)(local_preference_buf + 3) = __bswap_32(local_preference);
+  // find the break point to insert local preference
+  // before any attribute with type code which exceeds 5
+  while (p < limit) {
+    flags = *(uint8_t *)p++;
+    type_code = *(uint8_t *)p++;
+    if (type_code > 4) {
+      assert(type_code != 5);           // there should not be already a LOCAL_PREF attribute
+      assert(p > path_attributes.data); // sanity - it should not be the first attribute
+                                        // better check would look at the mandatory ones which should have pased by already
+      p -= 2;
+      break;
+    };
+    length = *(uint8_t *)p++;
+    if (0x10 & flags)
+      length = length << 8 | (*(uint8_t *)p++);
+    p += length;
+  };
+  void *break_point = p;
+  long int break_offset = break_point - path_attributes.data;
+  memcpy(_buf_fixup_localpreference, path_attributes.data, break_offset);
+  memcpy(_buf_fixup_localpreference + break_offset, local_preference_buf, 7);
+  memcpy(_buf_fixup_localpreference + break_offset + 7, break_point, path_attributes.length - break_offset);
+  return (struct chunk){_buf_fixup_localpreference, path_attributes.length + 7};
 };
 
 void build_tabledump_updates(struct mrt_peer_record *pr) {
@@ -25,13 +60,15 @@ void build_tabledump_updates(struct mrt_peer_record *pr) {
 
   length = 0;
   for (i = 0; i < pr->rib.count; i++)
-    length += 23 + pr->rib.table[i].prefix.length + pr->rib.table[i].path_attributes.length;
+    length += 23 + pr->rib.table[i].prefix.length + pr->rib.table[i].path_attributes.length + (ADD_LOCAL_PREF ? 7 : 0);
   p = malloc(length);
   assert(NULL != p);
   pr->tabledump_updates.length = length;
   pr->tabledump_updates.data = p;
   for (i = 0; i < pr->rib.count; i++) {
     struct mrt_ribentry *re = &pr->rib.table[i];
+    if (ADD_LOCAL_PREF)
+      re->path_attributes = fixup_localpreference(100, re->path_attributes);
     memcpy(p, marker, 16);
     update_length = 23 + re->prefix.length + re->path_attributes.length;
     *(uint16_t *)(p + 16) = __bswap_16(update_length);
