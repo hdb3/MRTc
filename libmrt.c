@@ -138,6 +138,11 @@ struct chunk get_one_bgp4mp(struct mrt_bgp4mp *sp, int peer, int msg_number) {
   return rval;
 };
 
+// this function (get_blocks_bgp4mp) simple builds a set of transmittable update sequences
+// with no direct control over the source peers
+//
+// a more specific function is required to match update sequences with corresponding peers and peer table dumps
+// the mechanism requires the peer ID, i.e. peer_as and peer_ip
 struct chunk *get_blocks_bgp4mp(struct mrt_bgp4mp *sp, int nblocks) {
   int i;
   struct chunk *blocks = calloc(nblocks + 1, sizeof(struct chunk));
@@ -151,6 +156,23 @@ struct chunk *get_blocks_bgp4mp(struct mrt_bgp4mp *sp, int nblocks) {
       blocks[i] = block_builder(sp->peer_table[i].bgp4mp.msg_list_head);
     };
   return blocks;
+};
+
+struct chunk get_blocks_bgp4mp_peer(struct mrt_bgp4mp *sp, uint32_t as, struct in_addr ip) {
+  int i;
+  struct mrt_peer_record *peer;
+  for (i = 0; i < sp->peer_count; i++) {
+    peer = &sp->peer_table[i];
+    if (as == peer->peer_as && ip.s_addr == peer->peer_ip.s_addr)
+      break;
+  };
+  if (i <= sp->peer_count) { // we found a match
+    printf("matched update peer with table dump peer %3d ", i);
+    //show_mrt_peer_record(peer);
+    //printf("\n");
+    return block_builder(peer->bgp4mp.msg_list_head);
+  } else
+    return (struct chunk){NULL, 0};
 };
 
 void report_mrt_bgp4mp(struct mrt_bgp4mp *sp) {

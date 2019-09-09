@@ -131,6 +131,10 @@ struct mrt_bgp4mp {
 };
 
 void build_tabledump_updates(struct mrt_peer_record *pr);
+void build_mrt_tabledump_tabledump_updates(struct mrt_tabledump *tabledump, int requested_table_size);
+
+void build_mrt_tabledump_bgp4mp_updates(struct mrt_tabledump *tabledump, struct mrt_bgp4mp *sp);
+
 struct chunk get_updates(struct mrt_tabledump *rib, int index);
 
 struct mrt_tabledump *get_mrt_tabledump(struct chunk buf);
@@ -167,3 +171,5 @@ struct chunk get_one_bgp4mp(struct mrt_bgp4mp *sp, int peer, int msg_number);
 
 int count_msg_list(struct msg_list_item *list);
 struct msg_list_item *filter_msgs(struct msg_list_item *list, struct bgp4mp_bgp_stats *spb);
+void show_mrt_peer_record(struct mrt_peer_record *peer);
+struct chunk get_blocks_bgp4mp_peer(struct mrt_bgp4mp *sp, uint32_t as, struct in_addr ip);

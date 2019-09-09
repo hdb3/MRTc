@@ -96,7 +96,20 @@ void analyse_mrt_tabledump(struct mrt_tabledump *tabledump) {
   printf("aggregate_counts: %d\n", aggregate_counts);
 };
 
-void build_updates_mrt_tabledump(struct mrt_tabledump *tabledump, int requested_table_size) {
+void build_mrt_tabledump_bgp4mp_updates(struct mrt_tabledump *tabledump, struct mrt_bgp4mp *sp) {
+  int i;
+  for (i = 0; i < tabledump->peer_count; i++) {
+    struct mrt_peer_record *peer = &tabledump->peer_table[i];
+    assert(!peer->is_ipv6);
+    printf("building bgp4mp_updates %2d: ", i);
+    show_mrt_peer_record(peer);
+    struct chunk bgp4mp_updates = get_blocks_bgp4mp_peer(sp, peer->peer_as, peer->peer_ip);
+    printf(" update size %d\n", bgp4mp_updates.length);
+    peer->bgp4mp_updates = bgp4mp_updates;
+  };
+};
+
+void build_mrt_tabledump_tabledump_updates(struct mrt_tabledump *tabledump, int requested_table_size) {
   int i;
   int large_table_count = 0;
   sort_peer_table(tabledump);
@@ -122,6 +135,7 @@ void build_updates_mrt_tabledump(struct mrt_tabledump *tabledump, int requested_
     free(peer->rib.table);
     // printf("\n");
   };
+  tabledump->peer_count = large_table_count;
 };
 
 void report_mrt_tabledump(struct mrt_tabledump *tabledump) {
