@@ -153,7 +153,51 @@ struct chunk *get_blocks_bgp4mp(struct mrt_bgp4mp *sp, int nblocks) {
   return blocks;
 };
 
+struct mrt_peer_record *lookup_mrt_peer(struct mrt_bgp4mp *sp, uint32_t as, struct in_addr ip) {
+  int i;
+  struct mrt_peer_record *peer;
+  for (i = 0; i < sp->peer_count; i++) {
+    peer = &sp->peer_table[i];
+    if (as == peer->peer_as && ip.s_addr == peer->peer_ip.s_addr)
+      return peer;
+  };
+  return NULL;
+};
+
+int match_tabledump_bgp4mp(struct mrt_tabledump *tabledump, struct mrt_bgp4mp *updatesdump) {
+  int i;
+  int matched = 0;
+  struct mrt_peer_record *tabledump_peer, *updatesdump_peer;
+  for (i = 0; i < tabledump->peer_count; i++) {
+    tabledump_peer = &tabledump->peer_table[i];
+    if (updatesdump_peer = lookup_mrt_peer(updatesdump, tabledump_peer->peer_as, tabledump_peer->peer_ip)) {
+      matched++;
+      tabledump_peer->link = updatesdump_peer;
+      updatesdump_peer->link = tabledump_peer;
+    } else
+      printf("lookup in updates failed for peer %s\n", show_mrt_peer_record(tabledump_peer));
+  };
+  return matched;
+};
+/*
+int match_bgp4mp_tabledump(struct mrt_bgp4mp *updatesdump, struct mrt_tabledump *tabledump) {
+  int i;
+  int matched = 0;
+  struct mrt_peer_record *tabledump_peer, *updatesdump_peer;
+  for (i = 0; i < updatesdump->peer_count; i++) {
+    updatesdump_peer = &updatesdump->peer_table[i];
+    if (tabledump_peer = lookup_mrt_peer(tabledump, updatesdump_peer->peer_as, updatesdump_peer->peer_ip)) {
+      matched++;
+      updatesdump_peer->link = tabledump_peer;
+      tabledump_peer->link = updatesdump_peer;
+    } else
+      printf("lookup in tabledump failed for peer %s\n", show_mrt_peer_record(updatesdump_peer));
+  };
+  return matched;
+};
+*/
 struct chunk get_blocks_bgp4mp_peer(struct mrt_bgp4mp *sp, uint32_t as, struct in_addr ip) {
+  /*
   int i;
   struct mrt_peer_record *peer;
   for (i = 0; i < sp->peer_count; i++) {
@@ -161,8 +205,11 @@ struct chunk get_blocks_bgp4mp_peer(struct mrt_bgp4mp *sp, uint32_t as, struct i
     if (as == peer->peer_as && ip.s_addr == peer->peer_ip.s_addr)
       break;
   };
-  if (i <= sp->peer_count) { // we found a match
-    printf(" matched update peer with table dump peer %3d ", i);
+  */
+  struct mrt_peer_record *peer;
+  peer = lookup_mrt_peer(sp, as, ip);
+  if (NULL != peer) {
+    printf(" matched update peer with table dump peer %3d ", peer->mrt_file_index);
     //show_mrt_peer_record(peer);
     //printf("\n");
     return block_builder(peer->bgp4mp.msg_list_head);

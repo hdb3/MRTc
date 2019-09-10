@@ -85,6 +85,7 @@ struct bgp4mp_peer {
 
 struct mrt_peer_record {
   int mrt_file_index;
+  struct mrt_peer_record *link;
   uint32_t local_as;
   uint32_t peer_as;
   uint32_t peer_bgpid;
@@ -107,8 +108,6 @@ struct mrt_peer_record {
 
 struct mrt_tabledump {
   int mrt_rec_count;
-  // int ipv4_unicast_count;
-  // int non_ipv4_unicast_count;
   int peer_count;
   struct mrt_peer_record *peer_table;
   int count_PEER_INDEX_TABLE;
@@ -174,6 +173,8 @@ struct chunk get_one_bgp4mp(struct mrt_bgp4mp *sp, int peer, int msg_number);
 
 int count_msg_list(struct msg_list_item *list);
 struct msg_list_item *filter_msgs(struct msg_list_item *list, struct bgp4mp_bgp_stats *spb);
-void show_mrt_peer_record(struct mrt_peer_record *peer);
+char *show_mrt_peer_record(struct mrt_peer_record *peer);
+void print_mrt_peer_record(struct mrt_peer_record *peer);
 struct chunk get_blocks_bgp4mp_peer(struct mrt_bgp4mp *sp, uint32_t as, struct in_addr ip);
 struct chunk update_fixup_localpreference(uint32_t local_preference, struct chunk update);
+int match_tabledump_bgp4mp(struct mrt_tabledump *tabledump, struct mrt_bgp4mp *updatesdump);

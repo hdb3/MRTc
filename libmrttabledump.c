@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <arpa/inet.h>
 #include <assert.h>
 #include <fcntl.h>
@@ -149,14 +150,23 @@ int compare_mrt_peer_record(const void *a, const void *b) {
   return (_b->rib.count - _a->rib.count);
 };
 
-void show_mrt_peer_record(struct mrt_peer_record *peer) {
+char *_show_mrt_peer_record = NULL;
+char *show_mrt_peer_record(struct mrt_peer_record *peer) {
+  if (NULL != _show_mrt_peer_record)
+    free(_show_mrt_peer_record);
+  char peer_bgpid_str[INET_ADDRSTRLEN];
   char peer_ip_str[INET6_ADDRSTRLEN];
   if (peer->is_ipv6)
     inet_ntop(AF_INET6, &peer->peer_ip6, peer_ip_str, INET6_ADDRSTRLEN);
   else
-    inet_ntop(AF_INET, &peer->peer_ip, peer_ip_str, sizeof(struct sockaddr));
-  printf("[%-3d %-15s AS%-6d ", peer->mrt_file_index, peer_ip_str, peer->peer_as);
-  printf("%-15s]", inet_ntoa((struct in_addr){peer->peer_bgpid}));
+    inet_ntop(AF_INET, &peer->peer_ip, peer_ip_str, INET_ADDRSTRLEN);
+  inet_ntop(AF_INET, &peer->peer_bgpid, peer_bgpid_str, INET_ADDRSTRLEN);
+  assert(asprintf(&_show_mrt_peer_record, "[%-3d %-15s AS%-6d %-15s]", peer->mrt_file_index, peer_ip_str, peer->peer_as, peer_bgpid_str));
+  return _show_mrt_peer_record;
+};
+
+void print_mrt_peer_record(struct mrt_peer_record *peer) {
+  fputs(show_mrt_peer_record(peer), stdout);
 };
 
 void sort_peer_table(struct mrt_tabledump *tabledump) {
@@ -170,7 +180,6 @@ void sort_peer_table(struct mrt_tabledump *tabledump) {
 void analyse_mrt_tabledump(struct mrt_tabledump *tabledump) {
   int i, max_entry_count, min_entry_count, non_zero_entry_counts, aggregate_counts;
   struct mrt_tabledump_peer_record *rib = NULL;
-  // printf("\nMRT TABLE dump Peer Table\n\n");
   min_entry_count = tabledump->peer_table[0].rib.count;
   max_entry_count = 0;
   aggregate_counts = 0;
@@ -196,7 +205,7 @@ void write_mrt_tabledump_all_updates(struct mrt_tabledump *tabledump) {
   for (i = 0; i < tabledump->peer_count; i++) {
     struct mrt_peer_record *peer = &tabledump->peer_table[i];
     printf("writing stream files       %2d: ", i);
-    show_mrt_peer_record(peer);
+    print_mrt_peer_record(peer);
     printf(" update size %d\n", peer->bgp4mp_updates.length);
     sprintf(fname, "updates.%02d.bin", i);
     write_chunk(fname, peer->bgp4mp_updates);
@@ -211,7 +220,7 @@ void build_mrt_tabledump_bgp4mp_updates(struct mrt_tabledump *tabledump, struct 
     struct mrt_peer_record *peer = &tabledump->peer_table[i];
     assert(!peer->is_ipv6);
     printf("building bgp4mp_updates    %2d: ", i);
-    show_mrt_peer_record(peer);
+    print_mrt_peer_record(peer);
     struct chunk bgp4mp_updates = get_blocks_bgp4mp_peer(sp, peer->peer_as, peer->peer_ip);
     printf(" update size %d\n", bgp4mp_updates.length);
     peer->bgp4mp_updates = bgp4mp_updates;
@@ -229,7 +238,7 @@ void build_mrt_tabledump_tabledump_updates(struct mrt_tabledump *tabledump, int 
   for (i = 0; i < large_table_count; i++) {
     struct mrt_peer_record *peer = &tabledump->peer_table[i];
     printf("building tabledump updates %2d: ", i);
-    show_mrt_peer_record(peer);
+    print_mrt_peer_record(peer);
     build_tabledump_updates(peer);
     printf(" entries %d update size %d\n", peer->rib.count, peer->tabledump_updates.length);
   };
