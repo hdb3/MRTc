@@ -89,34 +89,22 @@ void show_bgp4mp_peer_address(struct mrt_peer_record *peer) {
     inet_ntop(AF_INET, &peer->peer_ip, peer_ip_str, INET6_ADDRSTRLEN);
     inet_ntop(AF_INET, &peer->local_ip, local_ip_str, INET6_ADDRSTRLEN);
   };
-  printf("[ peer: as %-6d ip %-24s local: as %-6d ip %-24s]", peer->peer_as, peer_ip_str, peer->local_as, local_ip_str);
-};
-
-void show_bgp4mp_peer(struct mrt_peer_record *peer) {
-  int msg_count = count_msg_list(peer->bgp4mp.msg_list_head);
-  assert(msg_count == peer->bgp4mp.update_count);
-
-  printf("peer %-3d ", peer->mrt_file_index);
-
-  show_bgp4mp_peer_address(peer);
-  printf(" MRT records: %-7d  BGP msgs: %-7d  filtered Updates: %-7d\n",
-         peer->bgp4mp.rec_count, peer->bgp4mp.bgp_msg_count, peer->bgp4mp.update_count);
+  printf("[as %-6d ip %-24s (local: as %-6d ip %-24s)]", peer->peer_as, peer_ip_str, peer->local_as, local_ip_str);
 };
 
 void report_bgp4mp_bgp_stats(struct bgp4mp_bgp_stats *sp) {
-  printf("\nBGP Message Statistics\n\n");
-  printf("Opens %d\n", sp->open_count);
-  printf("Notifications %d\n", sp->notification_count);
-  printf("Keepalives %d\n", sp->keepalive_count);
-  printf("Updates %d\n", sp->all_update_count);
+  printf("report_bgp4mp_bgp_stats: %-7d Opens\n", sp->open_count);
+  printf("report_bgp4mp_bgp_stats: %-7d Notifications\n", sp->notification_count);
+  printf("report_bgp4mp_bgp_stats: %-7d Keepalives\n", sp->keepalive_count);
+  printf("report_bgp4mp_bgp_stats: %-7d Updates\n", sp->all_update_count);
 
-  printf("  Plain Updates %d\n", sp->update_count);
-  printf("  Withdraws %d\n", sp->withdraw_count);
-  printf("  MP-BGP Updates %d\n", sp->mpbgp_count);
-  printf("  Mixed Updates %d\n", sp->mixed_update_count);
-  printf("  End-of-RIB %d\n", sp->eor_count);
-  printf("    IBGP count %d\n", sp->ibgp_count);
-  printf("    MED count %d\n", sp->med_count);
+  printf("report_bgp4mp_bgp_stats:   %-7d Plain Updates\n", sp->update_count);
+  printf("report_bgp4mp_bgp_stats:   %-7d Withdraws\n", sp->withdraw_count);
+  printf("report_bgp4mp_bgp_stats:   %-7d MP-BGP Updates\n", sp->mpbgp_count);
+  printf("report_bgp4mp_bgp_stats:   %-7d Mixed Updates\n", sp->mixed_update_count);
+  printf("report_bgp4mp_bgp_stats:   %-7d End-of-RIB\n", sp->eor_count);
+  printf("report_bgp4mp_bgp_stats:     %-7d IBGP count\n", sp->ibgp_count);
+  printf("report_bgp4mp_bgp_stats:     %-7d MED count\n", sp->med_count);
 };
 
 struct chunk get_one_bgp4mp(struct mrt_bgp4mp *sp, int peer, int msg_number) {
@@ -174,7 +162,7 @@ struct chunk get_blocks_bgp4mp_peer(struct mrt_bgp4mp *sp, uint32_t as, struct i
       break;
   };
   if (i <= sp->peer_count) { // we found a match
-    printf("matched update peer with table dump peer %3d ", i);
+    printf(" matched update peer with table dump peer %3d ", i);
     //show_mrt_peer_record(peer);
     //printf("\n");
     return block_builder(peer->bgp4mp.msg_list_head);
@@ -184,18 +172,21 @@ struct chunk get_blocks_bgp4mp_peer(struct mrt_bgp4mp *sp, uint32_t as, struct i
 
 void report_mrt_bgp4mp(struct mrt_bgp4mp *sp) {
   int i;
-  printf("\nMRT Record Statistics\n\n");
-  printf("got %d MRT items\n", sp->mrt_msg_count);
-  printf("    %d messages, %d state changes\n", sp->mrt_bgp_msg_count, sp->state_changes);
+  printf("report_mrt_bgp4mp: %d MRT items\n", sp->mrt_msg_count);
+  printf("report_mrt_bgp4mp:    %d messages, %d state changes\n", sp->mrt_bgp_msg_count, sp->state_changes);
   if (0 < sp->ipv6_discards)
-    printf("    discarded %d IPv6 items\n", sp->ipv6_discards);
+    printf("report_mrt_bgp4mp:    discarded %d IPv6 items\n", sp->ipv6_discards);
   if (0 < sp->as2_discards)
-    printf("    discarded %d AS2 items\n", sp->as2_discards);
-  printf("sorting peers based on update counts\n");
+    printf("report_mrt_bgp4mp:    discarded %d AS2 items\n", sp->as2_discards);
   sort_bgp4mp_peers(sp);
-  printf("displaying top 10 peers\n");
-  for (i = 0; i < 10 && i < sp->peer_count; i++)
-    show_bgp4mp_peer(&sp->peer_table[i]);
+  printf("report_mrt_bgp4mp: displaying top 5 peers\n");
+  printf("report_mrt_bgp4mp: peer index                                                                                records  msgs     filtered updates\n");
+  for (i = 0; i < 5 && i < sp->peer_count; i++) {
+    struct mrt_peer_record *peer = &sp->peer_table[i];
+    printf("report_mrt_bgp4mp: %-3d", i);
+    show_bgp4mp_peer_address(peer);
+    printf(" %-7d  %-7d  %-7d\n", peer->bgp4mp.rec_count, peer->bgp4mp.bgp_msg_count, peer->bgp4mp.update_count);
+  };
 };
 
 static inline void process_path_attribute(uint8_t type_code, struct chunk msg, struct bgp4mp_bgp_stats *sp) {
@@ -320,7 +311,7 @@ void mrt_parse(struct chunk buf, struct mrt_bgp4mp *sp) {
       min_mrt_length = MIN_MRT_LENGTH_ET;
       ET_extension = 4;
     } else {
-      printf("wrong msg_type %d/%d msg# %d\n", msg_type, msg_subtype, sp->mrt_msg_count);
+      printf("mrt_parse: wrong msg_type %d/%d msg# %d\n", msg_type, msg_subtype, sp->mrt_msg_count);
       exit(1);
     };
     switch (msg_subtype) {
@@ -329,7 +320,7 @@ void mrt_parse(struct chunk buf, struct mrt_bgp4mp *sp) {
     case BGP4MP_MESSAGE_LOCAL:
       is_AS4 = 0;
       if (0 == sp->as2_discards)
-        printf("first unsupported AS2 msg_subtype %d at msg %d\n", msg_subtype, sp->mrt_msg_count);
+        printf("mrt_parse: unsupported AS2 msg_subtype %d at msg %d\n", msg_subtype, sp->mrt_msg_count);
       sp->as2_discards++;
       break;
     case BGP4MP_MESSAGE_AS4:
@@ -338,7 +329,7 @@ void mrt_parse(struct chunk buf, struct mrt_bgp4mp *sp) {
       is_AS4 = 1;
       break;
     default:
-      printf("bad msg_sub_type %d/%d\n", msg_type, msg_subtype);
+      printf("mrt_parse: bad msg_sub_type %d/%d\n", msg_type, msg_subtype);
       exit(1);
     };
 
@@ -348,7 +339,7 @@ void mrt_parse(struct chunk buf, struct mrt_bgp4mp *sp) {
       BGP4MP_header_length = (1 == afi) ? BGP4MP_IPV4_PEER_HEADER_LENGTH : BGP4MP_IPV6_PEER_HEADER_LENGTH;
       if ((1 == afi) || (2 == afi)) {
       } else
-        printf("AFI wrong %d at mrt_count %d %d/%d\n", afi, sp->mrt_msg_count, msg_type, msg_subtype);
+        printf("mrt_parse: AFI wrong %d at mrt_count %d %d/%d\n", afi, sp->mrt_msg_count, msg_type, msg_subtype);
       assert((1 == afi) || (2 == afi));
       // lookup the bgp4mp common header in the raw peer table
       found = 0;
@@ -415,9 +406,9 @@ void mrt_parse(struct chunk buf, struct mrt_bgp4mp *sp) {
         // uint16_t old_state = getw16(ptr + min_mrt_length + BGP4MP_header_length);
         // uint16_t new_state = getw16(ptr + min_mrt_length + BGP4MP_header_length + 2);
         // show_bgp4mp_peer_header(ptr + min_mrt_length);
-        // printf("state change %d -> %d at %d\n", old_state, new_state, sp->mrt_count);
+        // printf("mrt_parse: state change %d -> %d at %d\n", old_state, new_state, sp->mrt_count);
       } else {
-        printf("wrong msg_subtype %d at msg %d\n", msg_subtype, sp->mrt_msg_count);
+        printf("mrt_parse: wrong msg_subtype %d at msg %d\n", msg_subtype, sp->mrt_msg_count);
       };
     };
     // note - even for _ET extended type messages the message length calculation uses the old

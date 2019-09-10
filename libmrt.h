@@ -106,9 +106,9 @@ struct mrt_peer_record {
 };
 
 struct mrt_tabledump {
-  int mrt_count;
-  int ipv4_unicast_count;
-  int non_ipv4_unicast_count;
+  int mrt_rec_count;
+  // int ipv4_unicast_count;
+  // int non_ipv4_unicast_count;
   int peer_count;
   struct mrt_peer_record *peer_table;
   int count_PEER_INDEX_TABLE;

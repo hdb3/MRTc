@@ -170,7 +170,7 @@ void sort_peer_table(struct mrt_tabledump *tabledump) {
 void analyse_mrt_tabledump(struct mrt_tabledump *tabledump) {
   int i, max_entry_count, min_entry_count, non_zero_entry_counts, aggregate_counts;
   struct mrt_tabledump_peer_record *rib = NULL;
-  printf("\nMRT TABLE dump Peer Table\n\n");
+  // printf("\nMRT TABLE dump Peer Table\n\n");
   min_entry_count = tabledump->peer_table[0].rib.count;
   max_entry_count = 0;
   aggregate_counts = 0;
@@ -184,19 +184,18 @@ void analyse_mrt_tabledump(struct mrt_tabledump *tabledump) {
     min_entry_count = min_entry_count > rib->count ? rib->count : min_entry_count;
     max_entry_count = max_entry_count < rib->count ? rib->count : max_entry_count;
   };
-  printf("max_entry_count: %d\n", max_entry_count);
-  printf("min_entry_count: %d\n", min_entry_count);
-  printf("non_zero_entry_counts: %d\n", non_zero_entry_counts);
-  printf("aggregate_counts: %d\n", aggregate_counts);
+  printf("analyse_mrt_tabledump: max_entry_count: %d\n", max_entry_count);
+  printf("analyse_mrt_tabledump: min_entry_count: %d\n", min_entry_count);
+  printf("analyse_mrt_tabledump: non_zero_entry_counts: %d\n", non_zero_entry_counts);
+  printf("analyse_mrt_tabledump: aggregate_counts: %d\n", aggregate_counts);
 };
 
 void write_mrt_tabledump_all_updates(struct mrt_tabledump *tabledump) {
   int i;
   char fname[128];
-  //char fname[] = "updates.xxx.bin";
   for (i = 0; i < tabledump->peer_count; i++) {
     struct mrt_peer_record *peer = &tabledump->peer_table[i];
-    printf("writing stream files %2d: ", i);
+    printf("writing stream files       %2d: ", i);
     show_mrt_peer_record(peer);
     printf(" update size %d\n", peer->bgp4mp_updates.length);
     sprintf(fname, "updates.%02d.bin", i);
@@ -211,7 +210,7 @@ void build_mrt_tabledump_bgp4mp_updates(struct mrt_tabledump *tabledump, struct 
   for (i = 0; i < tabledump->peer_count; i++) {
     struct mrt_peer_record *peer = &tabledump->peer_table[i];
     assert(!peer->is_ipv6);
-    printf("building bgp4mp_updates %2d: ", i);
+    printf("building bgp4mp_updates    %2d: ", i);
     show_mrt_peer_record(peer);
     struct chunk bgp4mp_updates = get_blocks_bgp4mp_peer(sp, peer->peer_as, peer->peer_ip);
     printf(" update size %d\n", bgp4mp_updates.length);
@@ -229,10 +228,10 @@ void build_mrt_tabledump_tabledump_updates(struct mrt_tabledump *tabledump, int 
   printf("large_table_count: %d (>%d)\n", large_table_count, requested_table_size);
   for (i = 0; i < large_table_count; i++) {
     struct mrt_peer_record *peer = &tabledump->peer_table[i];
-    printf("%2d: ", i);
+    printf("building tabledump updates %2d: ", i);
     show_mrt_peer_record(peer);
     build_tabledump_updates(peer);
-    printf(" entries %d allocated update size %d\n", peer->rib.count, peer->tabledump_updates.length);
+    printf(" entries %d update size %d\n", peer->rib.count, peer->tabledump_updates.length);
   };
   for (i = large_table_count; i < tabledump->peer_count; i++) {
     struct mrt_peer_record *peer = &tabledump->peer_table[i];
@@ -249,16 +248,17 @@ void build_mrt_tabledump_tabledump_updates(struct mrt_tabledump *tabledump, int 
 };
 
 void report_mrt_tabledump(struct mrt_tabledump *tabledump) {
-  printf("\nMRT TABLE dump Peer Table\n\n");
-  printf("got %d MRT items\n", tabledump->mrt_count);
-  if (0 == tabledump->non_ipv4_unicast_count)
-    printf("got %d IPv4 unicast rib entries\n", tabledump->ipv4_unicast_count);
+  printf("\nreport_mrt_tabledump\n");
+  printf("report_mrt_tabledump: %d MRT items\n", tabledump->mrt_rec_count);
+  int non_ipv4_unicast_count = tabledump->count_RIB_IPV4_MULTICAST + tabledump->count_RIB_IPV6_UNICAST + tabledump->count_RIB_IPV6_MULTICAST + tabledump->count_RIB_GENERIC;
+  if (0 == non_ipv4_unicast_count)
+    printf("report_mrt_tabledump: %d IPv4 unicast rib entries\n", tabledump->count_RIB_IPV4_UNICAST);
   else {
-    printf("got %d rib entries\n", tabledump->non_ipv4_unicast_count + tabledump->ipv4_unicast_count);
-    printf("got %d IPv4 unicast rib entries\n", tabledump->ipv4_unicast_count);
-    printf("got %d non IPv4 unicast rib entries\n", tabledump->non_ipv4_unicast_count);
+    printf("report_mrt_tabledump: %d rib entries\n", non_ipv4_unicast_count + tabledump->count_RIB_IPV4_UNICAST);
+    printf("report_mrt_tabledump: %d IPv4 unicast rib entries\n", tabledump->count_RIB_IPV4_UNICAST);
+    printf("report_mrt_tabledump: %d non IPv4 unicast rib entries\n", non_ipv4_unicast_count);
   };
-  printf("peer table contains %d records\n", tabledump->peer_count);
+  printf("report_mrt_tabledump: %d peer records\n", tabledump->peer_count);
 };
 
 static inline void process_RIB_IPV4_UNICAST_entry(struct mrt_tabledump *tabledump, uint16_t peer_index, struct chunk bgp_attributes, struct chunk nlri) {
@@ -361,7 +361,10 @@ void mrt_list_walker(struct mrt_tabledump *tabledump, struct chunk buf) {
     };
   };
   assert(mrt_buffer_ptr == mrt_buffer_limit);
-  tabledump->mrt_count = mrt_item_count;
+  tabledump->mrt_rec_count = mrt_item_count;
+  assert(1 == tabledump->count_PEER_INDEX_TABLE);
+  //tabledump->ipv4_unicast_count = tabledump->count_RIB_IPV4_UNICAST;
+  // tabledump->non_ipv4_unicast_count = tabledump->count_RIB_IPV4_MULTICAST + tabledump->count_RIB_IPV6_UNICAST + tabledump->count_RIB_IPV6_MULTICAST + tabledump->count_RIB_GENERIC;
 };
 
 static inline void parse_mrt_TABLE_DUMP_V2(struct mrt_tabledump *rib, struct chunk buf) {
@@ -408,8 +411,8 @@ static inline void parse_mrt_TABLE_DUMP_V2(struct mrt_tabledump *rib, struct chu
     else
       peer->peer_ip = (struct in_addr){__bswap_32(getw32(peer_entries + 5))};
 
-    show_mrt_peer_record(peer);
-    printf("\n");
+    // show_mrt_peer_record(peer);
+    // printf("\n");
     peer_entries += 5 + ip_addr_length + as_addr_length;
   };
   //printf("%d peers processed, peer_entries %p peer_entries_limit %p [%ld]\n", i, peer_entries, peer_entries_limit, peer_entries_limit - peer_entries);
@@ -425,12 +428,9 @@ struct mrt_tabledump *get_mrt_tabledump(struct chunk buf) {
 
   // parse the initial MRT record which must be type TABLE_DUMP_V2 subtype PEER_INDEX_TABLE
   parse_mrt_TABLE_DUMP_V2(tabledump, buf);
-  printf("parse_mrt_TABLE_DUMP_V2: %d peers\n", tabledump->peer_count);
+  printf("get_mrt_tabledump: found %d peers\n", tabledump->peer_count);
   mrt_list_walker(tabledump, buf);
-  assert(1 == tabledump->count_PEER_INDEX_TABLE);
-  tabledump->ipv4_unicast_count = tabledump->count_RIB_IPV4_UNICAST;
-  tabledump->non_ipv4_unicast_count = tabledump->count_RIB_IPV4_MULTICAST + tabledump->count_RIB_IPV6_UNICAST + tabledump->count_RIB_IPV6_MULTICAST + tabledump->count_RIB_GENERIC;
-  printf("get_mrt_tabledump: %d count_RIB_IPV4_UNICAST_entries\n", tabledump->count_RIB_IPV4_UNICAST);
+  printf("get_mrt_tabledump: %d IPV4_UNICAST entries\n", tabledump->count_RIB_IPV4_UNICAST);
   printf("get_mrt_tabledump: highest active peer index: %d\n", tabledump->max_peer_index);
   return tabledump;
 };
