@@ -131,6 +131,13 @@ struct mrt_bgp4mp {
   struct mrt_peer_record *peer_table;
 };
 
+struct mrt {
+  union {
+    struct mrt_tabledump tabledump;
+    struct mrt_bgp4mp bgp4mp;
+  };
+};
+
 void build_tabledump_updates(struct mrt_peer_record *pr);
 void build_mrt_tabledump_tabledump_updates(struct mrt_tabledump *tabledump, int requested_table_size);
 
@@ -178,3 +185,4 @@ void print_mrt_peer_record(struct mrt_peer_record *peer);
 struct chunk get_blocks_bgp4mp_peer(struct mrt_bgp4mp *sp, uint32_t as, struct in_addr ip);
 struct chunk update_fixup_localpreference(uint32_t local_preference, struct chunk update);
 int match_tabledump_bgp4mp(struct mrt_tabledump *tabledump, struct mrt_bgp4mp *updatesdump);
+int match_bgp4mp_tabledump(struct mrt_bgp4mp *updatesdump, struct mrt_tabledump *tabledump);
