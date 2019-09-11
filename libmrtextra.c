@@ -39,7 +39,8 @@ int match_tabledump_bgp4mp(struct mrt *tabledump, struct mrt *updatesdump) {
       assert(NULL == updatesdump_peer->link || tabledump_peer == updatesdump_peer->link);
       updatesdump_peer->link = tabledump_peer;
     } else
-      printf("lookup in updates failed for peer %s\n", show_mrt_peer_record(tabledump_peer));
+      // no need to report - mrt_summary will show if detail wanted
+      ; // printf("lookup in updates failed for peer %s\n", show_mrt_peer_record(tabledump_peer));
   };
   return matched;
 };
@@ -59,7 +60,8 @@ int match_bgp4mp_tabledump(struct mrt *updatesdump, struct mrt *tabledump) {
       assert(NULL == tabledump_peer->link || updatesdump_peer == tabledump_peer->link);
       tabledump_peer->link = updatesdump_peer;
     } else
-      printf("lookup in tabledump failed for peer %s\n", show_mrt_peer_record(updatesdump_peer));
+      // no need to report - mrt_summary will show if detail wanted
+      ; // printf("lookup in tabledump failed for peer %s\n", show_mrt_peer_record(updatesdump_peer));
   };
   return matched;
 };

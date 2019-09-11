@@ -191,12 +191,13 @@ void write_mrt_tabledump_all_updates(struct mrt *tabledump) {
     struct mrt_peer_record *peer = &tabledump->peer_table[i];
     printf("writing stream files       %2d: ", i);
     print_mrt_peer_record(peer);
-    printf(" update size %ld\n", peer->bgp4mp_updates.length);
+    printf(" update size %ld\r", peer->bgp4mp_updates.length);
     sprintf(fname, "updates.%02d.bin", i);
     write_chunk(fname, peer->bgp4mp_updates);
     sprintf(fname, "table.%02d.bin", i);
     write_chunk(fname, peer->tabledump_updates);
   };
+  printf("write_mrt_tabledump_all_updates: wrote %d table dump update streams\e[K\n", i);
 };
 
 void build_mrt_tabledump_bgp4mp_updates(struct mrt *tabledump, struct mrt *updatedump) {
@@ -209,9 +210,10 @@ void build_mrt_tabledump_bgp4mp_updates(struct mrt *tabledump, struct mrt *updat
     printf("building bgp4mp_updates    %2d: ", i);
     print_mrt_peer_record(peer);
     struct chunk bgp4mp_updates = get_blocks_bgp4mp_peer(peer->link);
-    printf(" update size %ld\n", bgp4mp_updates.length);
+    printf(" update size %ld\r", bgp4mp_updates.length);
     peer->bgp4mp_updates = bgp4mp_updates;
   };
+  printf("build_mrt_tabledump_bgp4mp_updates: built %d bgp4mp update streams\e[K\n", i);
 };
 
 void build_mrt_tabledump_tabledump_updates(struct mrt *tabledump, int requested_table_size) {
@@ -228,8 +230,9 @@ void build_mrt_tabledump_tabledump_updates(struct mrt *tabledump, int requested_
     printf("building tabledump updates %2d: ", i);
     print_mrt_peer_record(peer);
     build_tabledump_updates(peer);
-    printf(" entries %d update size %ld\n", peer->rib.count, peer->tabledump_updates.length);
+    printf(" entries %d update size %ld\r", peer->rib.count, peer->tabledump_updates.length);
   };
+  printf("build_mrt_tabledump_tabledump_updates: built %d tabledump update streams\e[K\n", i);
   for (i = large_table_count; i < tabledump->peer_count; i++) {
     struct mrt_peer_record *peer = &tabledump->peer_table[i];
 
