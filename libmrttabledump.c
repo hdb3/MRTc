@@ -368,11 +368,9 @@ void mrt_list_walker(struct mrt *mrt, struct chunk buf) {
   assert(mrt_buffer_ptr == mrt_buffer_limit);
   mrt->mrt_rec_count = mrt_item_count;
   assert(1 == mrt->tabledump.count_PEER_INDEX_TABLE);
-  //tabledump->ipv4_unicast_count = tabledump->count_RIB_IPV4_UNICAST;
-  // tabledump->non_ipv4_unicast_count = tabledump->count_RIB_IPV4_MULTICAST + tabledump->count_RIB_IPV6_UNICAST + tabledump->count_RIB_IPV6_MULTICAST + tabledump->count_RIB_GENERIC;
 };
 
-static inline void parse_mrt_TABLE_DUMP_V2(struct mrt *mrt, struct chunk buf) {
+void parse_mrt_TABLE_DUMP_V2(struct mrt *mrt, struct chunk buf) {
   assert(TYPE_TABLEDUMP == mrt->type);
   uint16_t msg_type, msg_subtype, mrt_peer_count, mrt_view_name_length;
   uint8_t peer_type;

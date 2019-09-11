@@ -12,6 +12,41 @@
 
 #include "libmrt.h"
 
+static inline int compare_bgp4mp_peer(const void *a, const void *b) {
+  struct mrt_peer_record *_a = (struct mrt_peer_record *)a;
+  struct mrt_peer_record *_b = (struct mrt_peer_record *)b;
+  return (_b->bgp4mp.update_count - _a->bgp4mp.update_count);
+};
+
+void sort_bgp4mp_peers(struct mrt *mrt) {
+  assert(TYPE_BGP4MP == mrt->type);
+  qsort(mrt->peer_table, mrt->peer_count, sizeof(struct mrt_peer_record), compare_bgp4mp_peer);
+};
+
+int filter_updates_on_size(struct mrt *mrt, int min_size) {
+  int i, remaining;
+  struct mrt_peer_record *peer;
+  assert(TYPE_BGP4MP == mrt->type);
+  sort_bgp4mp_peers(mrt);
+  remaining = 0;
+  for (i = 0; i < mrt->peer_count; i++) {
+    peer = &mrt->peer_table[i];
+    // printf("filter_updates_on_size: (%d) %d ", i, peer->bgp4mp.update_count);
+    if (min_size > peer->bgp4mp.update_count) {
+      // printf("NO\n");
+      free_update_list(peer->bgp4mp.update_list_head);
+      peer->bgp4mp.update_list_head = NULL;
+      peer->bgp4mp.update_list_tail = NULL;
+    } else {
+      remaining++;
+      // printf("YES\n");
+    };
+  };
+  mrt->peer_count = remaining;
+  mrt->peer_table = realloc(mrt->peer_table, remaining * sizeof(struct mrt_peer_record));
+  return remaining;
+};
+
 struct mrt_peer_record *lookup_mrt_peer(struct mrt *mrt, struct mrt_peer_record *key) {
   assert(TYPE_BGP4MP == mrt->type || TYPE_TABLEDUMP == mrt->type);
   int i;

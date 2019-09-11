@@ -15,7 +15,17 @@
 
 #define INFINITY 0x7ffff000
 
-static inline struct chunk block_builder(struct update_list_item *update_list) {
+void free_update_list(struct update_list_item *head) {
+  struct update_list_item *current, *next;
+  current = head;
+  while (current) {
+    next = current->next;
+    free(current);
+    current = next;
+  };
+};
+
+struct chunk block_builder(struct update_list_item *update_list) {
   long int length = 0;
   struct update_list_item *p;
   int offset;

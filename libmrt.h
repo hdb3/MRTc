@@ -127,8 +127,9 @@ struct mrt_bgp4mp {
   int state_changes;
   int as2_discards;
   int ipv6_discards;
-  struct update_list_item *update_list_head, *update_list_tail;
-  int update_list_length;
+  struct bgp4mp_bgp_stats bgp_stats;
+  // struct update_list_item *update_list_head, *update_list_tail;
+  // int update_list_length;
 };
 
 #define TYPE_TABLEDUMP 1

@@ -12,20 +12,9 @@
 
 #include "libmrt.h"
 
-#define INFINITY 0x7ffff000
-
-static inline int compare_bgp4mp_peer(const void *a, const void *b) {
-  struct mrt_peer_record *_a = (struct mrt_peer_record *)a;
-  struct mrt_peer_record *_b = (struct mrt_peer_record *)b;
-  return (_b->bgp4mp.update_count - _a->bgp4mp.update_count);
-};
-
-void sort_bgp4mp_peers(struct mrt *sp) {
-  qsort(sp->peer_table, sp->peer_count, sizeof(struct mrt_peer_record), compare_bgp4mp_peer);
-};
-
-static inline struct chunk update_block_builder(struct update_list_item *update_list) {
+struct chunk get_blocks_bgp4mp_peer(struct mrt_peer_record *peer) {
   long int length = 0;
+  struct update_list_item *update_list = peer->bgp4mp.update_list_head;
   struct update_list_item *p;
   int offset;
 
@@ -34,8 +23,10 @@ static inline struct chunk update_block_builder(struct update_list_item *update_
     length += p->msg.length + (ADD_LOCAL_PREF ? 7 : 0);
     p = p->next;
   };
-  // NOTE - the assigned length assumes all messages get local pref added - but some may not be eligible e.g. withdraw
-  // however, allocating too much memory is nota problem as long as we trim it or something when we finish....
+    // NOTE - the assigned length assumes all messages get local pref added - but some may not be eligible e.g. withdraw
+    // however, allocating too much memory is nota problem as long as we trim it or something when we finish....
+#define INFINITY 0x7ffff000
+  // linux syscalls wont wrok with buffers bigger than 2G....
   assert(length < INFINITY);
   void *buffer = malloc(length);
   assert(NULL != buffer);
@@ -84,60 +75,6 @@ void report_bgp4mp_bgp_stats(struct bgp4mp_bgp_stats *sp) {
   printf("report_bgp4mp_bgp_stats:     %-7d MED count\n", sp->med_count);
 };
 
-struct chunk get_one_bgp4mp(struct mrt *mrt, int peer, int msg_number) {
-  assert(TYPE_BGP4MP == mrt->type);
-  int i;
-  struct chunk rval = (struct chunk){NULL, 0};
-  sort_bgp4mp_peers(mrt);
-  if (peer >= mrt->peer_count) {
-    printf("get_one_bgp4mp: *** WARNING *** insufficient peers, cannot continue (%d/%d)\n", peer, mrt->peer_count);
-    exit(1);
-  } else if (msg_number > mrt->peer_table[peer].bgp4mp.update_count) {
-    printf("get_one_bgp4mp: *** WARNING *** insufficient msgs, cannot continue (%d/%d)\n", msg_number, mrt->peer_table[peer].bgp4mp.update_count);
-    exit(1);
-  } else {
-
-    i = 0;
-    struct update_list_item *list = mrt->peer_table[i].bgp4mp.update_list_head;
-    while (list != NULL) {
-      if (msg_number == i) {
-        rval = list->msg;
-        break;
-      };
-      i++;
-      list = list->next;
-    };
-  };
-  return rval;
-};
-
-// this function (get_blocks_bgp4mp) simple builds a set of transmittable update sequences
-// with no direct control over the source peers
-//
-// a more specific function is required to match update sequences with corresponding peers and peer table dumps
-// the mechanism requires the peer ID, i.e. peer_as and peer_ip
-struct chunk *get_blocks_bgp4mp(struct mrt *mrt, int nblocks) {
-  assert(TYPE_BGP4MP == mrt->type);
-  int i;
-  struct chunk *blocks = calloc(nblocks + 1, sizeof(struct chunk));
-  sort_bgp4mp_peers(mrt);
-  if (nblocks > mrt->peer_count)
-    printf("get_blocks_bgp4mp: *** WARNING *** insufficient peers, returning some empty blocks\n");
-  for (i = 0; i < nblocks && i < mrt->peer_count; i++)
-    if (i >= mrt->peer_count) {
-      blocks[i] = (struct chunk){NULL, 0}; // redundant due to calloc...
-    } else {
-      blocks[i] = update_block_builder(mrt->peer_table[i].bgp4mp.update_list_head);
-    };
-  return blocks;
-};
-
-// todo this is an unneeded level of indirection now
-// because the match is done already....
-struct chunk get_blocks_bgp4mp_peer(struct mrt_peer_record *peer) {
-  return update_block_builder(peer->bgp4mp.update_list_head);
-};
-
 void report_mrt_bgp4mp(struct mrt *mrt) {
   assert(TYPE_BGP4MP == mrt->type);
   int i;
@@ -147,14 +84,14 @@ void report_mrt_bgp4mp(struct mrt *mrt) {
     printf("report_mrt_bgp4mp:    discarded %d IPv6 items\n", mrt->bgp4mp.ipv6_discards);
   if (0 < mrt->bgp4mp.as2_discards)
     printf("report_mrt_bgp4mp:    discarded %d AS2 items\n", mrt->bgp4mp.as2_discards);
-  sort_bgp4mp_peers(mrt);
-  printf("report_mrt_bgp4mp: displaying top 5 peers\n");
-  printf("report_mrt_bgp4mp: peer index                                                                                records  msgs     filtered updates\n");
-  for (i = 0; i < 5 && i < mrt->peer_count; i++) {
+  report_bgp4mp_bgp_stats(&mrt->bgp4mp.bgp_stats);
+  printf("report_mrt_bgp4mp: peer                                                                                      MRT       BGP       filtered\n");
+  printf("report_mrt_bgp4mp: index                                                                                     records   msgs      updates\n");
+  for (i = 0; i < mrt->peer_count; i++) {
     struct mrt_peer_record *peer = &mrt->peer_table[i];
     printf("report_mrt_bgp4mp: %-3d", i);
     show_bgp4mp_peer_address(peer);
-    printf(" %-7d  %-7d  %-7d\n", peer->bgp4mp.rec_count, peer->bgp4mp.bgp_msg_count, peer->bgp4mp.update_count);
+    printf(" %-8d  %-8d  %-8d\n", peer->bgp4mp.rec_count, peer->bgp4mp.bgp_msg_count, peer->bgp4mp.update_count);
   };
 };
 
@@ -357,20 +294,26 @@ struct mrt *mrt_updates_parse(struct chunk buf) {
         struct chunk msg_chunk = (struct chunk){ptr + min_mrt_length + BGP4MP_header_length, msg_length - BGP4MP_header_length - ET_extension};
         pp->bgp4mp.bgp_msg_count++;
         mrt->bgp4mp.mrt_bgp_msg_count++;
+        /*
+// defunct code, we never use the single list of all unfiltered messages, so dont build it!
+#define BUILD_MASTER_LIST 0
+        if (BUILD_MASTER_LIST) {
+          struct update_list_item *itemg = calloc(1, sizeof(struct update_list_item));
+          itemg->msg = msg_chunk;
 
-        struct update_list_item *itemg = calloc(1, sizeof(struct update_list_item));
-        itemg->msg = msg_chunk;
-
-        if (NULL == mrt->bgp4mp.update_list_head)
-          mrt->bgp4mp.update_list_head = itemg;
-        else
-          mrt->bgp4mp.update_list_tail->next = itemg;
-        mrt->bgp4mp.update_list_length++;
-        mrt->bgp4mp.update_list_tail = itemg;
+          if (NULL == mrt->bgp4mp.update_list_head)
+            mrt->bgp4mp.update_list_head = itemg;
+          else
+            mrt->bgp4mp.update_list_tail->next = itemg;
+          mrt->bgp4mp.update_list_length++;
+          mrt->bgp4mp.update_list_tail = itemg;
+        };
+*/
 
         // now create a separate shadow list for each peer
         // using same chunk but new update_list_item
 
+        int ignore = process_bgp_message(msg_chunk, &mrt->bgp4mp.bgp_stats);
         int bgp_msg_status = process_bgp_message(msg_chunk, &pp->bgp4mp.bgp_stats);
         if (bgp_msg_status) { // we only want update messages in the list, so skip if not Update
           struct update_list_item *itemp = calloc(1, sizeof(struct update_list_item));
@@ -400,6 +343,7 @@ struct mrt *mrt_updates_parse(struct chunk buf) {
   return mrt;
 };
 
+/*
 int count_update_list(struct update_list_item *list) {
   int i = 0;
 
@@ -410,7 +354,9 @@ int count_update_list(struct update_list_item *list) {
   };
   return i;
 };
-
+*/
+/*
+// redundant - process_bgp_message is done for each independent peer now
 struct update_list_item *filter_msgs(struct update_list_item *list, struct bgp4mp_bgp_stats *sp) {
   // filter list of non-compliant chunks based on process_bgp_message return
   // value builds a new list with a dummy head, which is discarded on exit
@@ -432,3 +378,4 @@ struct update_list_item *filter_msgs(struct update_list_item *list, struct bgp4m
   };
   return head.next;
 };
+*/
