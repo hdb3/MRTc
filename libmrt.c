@@ -14,12 +14,12 @@
 
 #define INFINITY 0x7ffff000
 
-static inline struct chunk block_builder(struct msg_list_item *msg_list) {
+static inline struct chunk block_builder(struct update_list_item *update_list) {
   long int length = 0;
-  struct msg_list_item *p;
+  struct update_list_item *p;
   int offset;
 
-  p = msg_list;
+  p = update_list;
   while (p != NULL) {
     length += p->msg.length + (ADD_LOCAL_PREF ? 7 : 0);
     p = p->next;
@@ -29,7 +29,7 @@ static inline struct chunk block_builder(struct msg_list_item *msg_list) {
   assert(length < INFINITY);
   void *buffer = malloc(length);
   assert(NULL != buffer);
-  p = msg_list;
+  p = update_list;
   offset = 0;
   while (p != NULL) {
     struct chunk pre = p->msg;
@@ -121,7 +121,7 @@ struct chunk get_one_bgp4mp(struct mrt *mrt, int peer, int msg_number) {
   } else {
 
     i = 0;
-    struct msg_list_item *list = mrt->peer_table[i].bgp4mp.msg_list_head;
+    struct update_list_item *list = mrt->peer_table[i].bgp4mp.update_list_head;
     while (list != NULL) {
       if (msg_number == i) {
         rval = list->msg;
@@ -150,7 +150,7 @@ struct chunk *get_blocks_bgp4mp(struct mrt *mrt, int nblocks) {
     if (i >= mrt->peer_count) {
       blocks[i] = (struct chunk){NULL, 0}; // redundant due to calloc...
     } else {
-      blocks[i] = block_builder(mrt->peer_table[i].bgp4mp.msg_list_head);
+      blocks[i] = block_builder(mrt->peer_table[i].bgp4mp.update_list_head);
     };
   return blocks;
 };
@@ -232,7 +232,7 @@ struct chunk get_blocks_bgp4mp_peer(struct mrt *mrt, uint32_t as, struct in_addr
     printf(" matched update peer with table dump peer %3d ", peer->mrt_file_index);
     //show_mrt_peer_record(peer);
     //printf("\n");
-    return block_builder(peer->bgp4mp.msg_list_head);
+    return block_builder(peer->bgp4mp.update_list_head);
   } else
     return (struct chunk){NULL, 0};
 };
@@ -447,28 +447,28 @@ struct mrt *mrt_parse(struct chunk buf) {
         pp->bgp4mp.bgp_msg_count++;
         mrt->bgp4mp.mrt_bgp_msg_count++;
 
-        struct msg_list_item *itemg = calloc(1, sizeof(struct msg_list_item));
+        struct update_list_item *itemg = calloc(1, sizeof(struct update_list_item));
         itemg->msg = msg_chunk;
 
-        if (NULL == mrt->bgp4mp.msg_list_head)
-          mrt->bgp4mp.msg_list_head = itemg;
+        if (NULL == mrt->bgp4mp.update_list_head)
+          mrt->bgp4mp.update_list_head = itemg;
         else
-          mrt->bgp4mp.msg_list_tail->next = itemg;
-        mrt->bgp4mp.msg_list_length++;
-        mrt->bgp4mp.msg_list_tail = itemg;
+          mrt->bgp4mp.update_list_tail->next = itemg;
+        mrt->bgp4mp.update_list_length++;
+        mrt->bgp4mp.update_list_tail = itemg;
 
         // now create a separate shadow list for each peer
-        // using same chunk but new msg_list_item
+        // using same chunk but new update_list_item
 
         int bgp_msg_status = process_bgp_message(msg_chunk, &pp->bgp4mp.bgp_stats);
         if (bgp_msg_status) { // we only want update messages in the list, so skip if not Update
-          struct msg_list_item *itemp = calloc(1, sizeof(struct msg_list_item));
+          struct update_list_item *itemp = calloc(1, sizeof(struct update_list_item));
           itemp->msg = msg_chunk;
-          if (NULL == pp->bgp4mp.msg_list_head)
-            pp->bgp4mp.msg_list_head = itemp;
+          if (NULL == pp->bgp4mp.update_list_head)
+            pp->bgp4mp.update_list_head = itemp;
           else
-            pp->bgp4mp.msg_list_tail->next = itemp;
-          pp->bgp4mp.msg_list_tail = itemp;
+            pp->bgp4mp.update_list_tail->next = itemp;
+          pp->bgp4mp.update_list_tail = itemp;
           pp->bgp4mp.update_count++;
         };
       } else if (msg_subtype == BGP4MP_STATE_CHANGE_AS4) {
@@ -489,7 +489,7 @@ struct mrt *mrt_parse(struct chunk buf) {
   return mrt;
 };
 
-int count_msg_list(struct msg_list_item *list) {
+int count_update_list(struct update_list_item *list) {
   int i = 0;
 
   // simple list walk without list modification
@@ -500,12 +500,12 @@ int count_msg_list(struct msg_list_item *list) {
   return i;
 };
 
-struct msg_list_item *filter_msgs(struct msg_list_item *list, struct bgp4mp_bgp_stats *sp) {
+struct update_list_item *filter_msgs(struct update_list_item *list, struct bgp4mp_bgp_stats *sp) {
   // filter list of non-compliant chunks based on process_bgp_message return
   // value builds a new list with a dummy head, which is discarded on exit
-  struct msg_list_item head = {NULL, (struct chunk){NULL, 0}};
-  struct msg_list_item *last = &head;
-  struct msg_list_item *next;
+  struct update_list_item head = {NULL, (struct chunk){NULL, 0}};
+  struct update_list_item *last = &head;
+  struct update_list_item *next;
   memset(sp, 0, sizeof(*sp));
   while (list != NULL) {
     next = list->next;
