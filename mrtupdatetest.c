@@ -13,7 +13,7 @@ int main(int argc, char **argv) {
 
   assert(1 < argc);
   buf = map_mrt_file(argv[1]);
-  updatedump = mrt_parse(buf);
+  updatedump = mrt_updates_parse(buf);
   update_list = updatedump->bgp4mp.update_list_head;
   printf("got %d messages from %s\n", count_update_list(update_list), argv[1]);
   update_list = filter_msgs(update_list, &bgp_stats);

@@ -17,28 +17,27 @@ int main(int argc, char **argv) {
   struct mrt *updatedump;
 
   assert(2 < argc);
-  printf("processing table dump in %s\n",argv[1]); 
+  printf("processing table dump in %s\n", argv[1]);
   buf_tabledump = map_mrt_file(argv[1]);
   tabledump = get_mrt_tabledump(buf_tabledump);
   report_mrt_tabledump(tabledump);
   analyse_mrt_tabledump(tabledump);
-  printf("processing updates in %s\n",argv[2]); 
+  printf("processing updates in %s\n", argv[2]);
   buf_updates = map_mrt_file(argv[2]);
 
-
-  updatedump = mrt_parse(buf_updates);
+  updatedump = mrt_updates_parse(buf_updates);
   update_list = updatedump->bgp4mp.update_list_head;
   printf("got %d messages from %s\n", count_update_list(update_list), argv[1]);
   update_list = filter_msgs(update_list, &bgp_stats);
   printf("got %d messages after filtering\n", count_update_list(update_list));
   report_mrt_bgp4mp(updatedump);
   report_bgp4mp_bgp_stats(&bgp_stats);
-  int match_count = match_tabledump_bgp4mp(tabledump,updatedump);
-  printf("matched %d tabledump peer records in updates\n",match_count);
-  match_count = match_bgp4mp_tabledump(updatedump,tabledump);
-  printf("matched %d update peer records in table dump\n",match_count);
+  int match_count = match_tabledump_bgp4mp(tabledump, updatedump);
+  printf("matched %d tabledump peer records in updates\n", match_count);
+  match_count = match_bgp4mp_tabledump(updatedump, tabledump);
+  printf("matched %d update peer records in table dump\n", match_count);
 
-/*
+  /*
   if (4 > argc)
     minimum_route_table_size = 500000;
   else {

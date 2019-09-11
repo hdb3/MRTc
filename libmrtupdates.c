@@ -13,6 +13,17 @@
 #include "libmrt.h"
 
 #define INFINITY 0x7ffff000
+
+static inline int compare_bgp4mp_peer(const void *a, const void *b) {
+  struct mrt_peer_record *_a = (struct mrt_peer_record *)a;
+  struct mrt_peer_record *_b = (struct mrt_peer_record *)b;
+  return (_b->bgp4mp.update_count - _a->bgp4mp.update_count);
+};
+
+void sort_bgp4mp_peers(struct mrt *sp) {
+  qsort(sp->peer_table, sp->peer_count, sizeof(struct mrt_peer_record), compare_bgp4mp_peer);
+};
+
 static inline struct chunk update_block_builder(struct update_list_item *update_list) {
   long int length = 0;
   struct update_list_item *p;

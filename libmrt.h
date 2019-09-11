@@ -138,52 +138,10 @@ struct mrt {
   };
 };
 
-void build_tabledump_updates(struct mrt_peer_record *pr);
-void build_mrt_tabledump_tabledump_updates(struct mrt *tabledump, int requested_table_size);
-
-void build_mrt_tabledump_bgp4mp_updates(struct mrt *tabledump, struct mrt *updatedump);
-void write_mrt_tabledump_all_updates(struct mrt *tabledump);
-
-struct chunk get_updates(struct mrt *rib, int index);
-
-struct mrt *get_mrt_tabledump(struct chunk buf);
-void report_mrt_tabledump(struct mrt *pt);
-void analyse_mrt_tabledump(struct mrt *pt);
-void build_updates_mrt_tabledump(struct mrt *tabledump, int requested_table_size);
-void sort_peer_table(struct mrt *pt);
-
-static inline int compare_bgp4mp_peer(const void *a, const void *b) {
-  struct mrt_peer_record *_a = (struct mrt_peer_record *)a;
-  struct mrt_peer_record *_b = (struct mrt_peer_record *)b;
-  return (_b->bgp4mp.update_count - _a->bgp4mp.update_count);
-};
-
-static inline void sort_bgp4mp_peers(struct mrt *sp) {
-  qsort(sp->peer_table, sp->peer_count, sizeof(struct mrt_peer_record), compare_bgp4mp_peer);
-};
-
-void report_bgp4mp_bgp_stats(struct bgp4mp_bgp_stats *sp);
-void report_mrt_bgp4mp(struct mrt *sp);
-
 static inline uint16_t getw16(void *p) { return __bswap_16(*(uint16_t *)p); };
-
 static inline uint32_t getw32(void *p) { return __bswap_32(*(uint32_t *)p); };
 
-void print_chunk(struct chunk ch);
-void unmap_mrt_file(struct chunk ch);
-void write_chunk(const char *fname, struct chunk buf);
-struct chunk map_mrt_file(char *fname);
-
-struct mrt *mrt_updates_parse(struct chunk buf);
-struct chunk *get_blocks_bgp4mp(struct mrt *sp, int nblocks);
-struct chunk get_one_bgp4mp(struct mrt *sp, int peer, int msg_number);
-
-int count_update_list(struct update_list_item *list);
-struct update_list_item *filter_msgs(struct update_list_item *list, struct bgp4mp_bgp_stats *spb);
-char *show_mrt_peer_record(struct mrt_peer_record *peer);
-void print_mrt_peer_record(struct mrt_peer_record *peer);
-struct chunk get_blocks_bgp4mp_peer(struct mrt *sp, uint32_t as, struct in_addr ip);
-struct chunk update_fixup_localpreference(uint32_t local_preference, struct chunk update);
-int match_tabledump_bgp4mp(struct mrt *tabledump, struct mrt *updatesdump);
-int match_bgp4mp_tabledump(struct mrt *updatesdump, struct mrt *tabledump);
-struct mrt_peer_record *lookup_mrt_peer(struct mrt *mrt, uint32_t as, struct in_addr ip);
+#include "libmrtcommon.h"
+#include "libmrtextra.h"
+#include "libmrttabledump.h"
+#include "libmrtupdates.h"
