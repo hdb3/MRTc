@@ -40,7 +40,7 @@
 
 struct chunk {
   void *data;
-  int length;
+  uint64_t length;
 };
 
 struct update_list_item {

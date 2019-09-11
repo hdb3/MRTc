@@ -191,7 +191,7 @@ void write_mrt_tabledump_all_updates(struct mrt *tabledump) {
     struct mrt_peer_record *peer = &tabledump->peer_table[i];
     printf("writing stream files       %2d: ", i);
     print_mrt_peer_record(peer);
-    printf(" update size %d\n", peer->bgp4mp_updates.length);
+    printf(" update size %ld\n", peer->bgp4mp_updates.length);
     sprintf(fname, "updates.%02d.bin", i);
     write_chunk(fname, peer->bgp4mp_updates);
     sprintf(fname, "table.%02d.bin", i);
@@ -209,7 +209,7 @@ void build_mrt_tabledump_bgp4mp_updates(struct mrt *tabledump, struct mrt *updat
     printf("building bgp4mp_updates    %2d: ", i);
     print_mrt_peer_record(peer);
     struct chunk bgp4mp_updates = get_blocks_bgp4mp_peer(peer->link);
-    printf(" update size %d\n", bgp4mp_updates.length);
+    printf(" update size %ld\n", bgp4mp_updates.length);
     peer->bgp4mp_updates = bgp4mp_updates;
   };
 };
@@ -228,7 +228,7 @@ void build_mrt_tabledump_tabledump_updates(struct mrt *tabledump, int requested_
     printf("building tabledump updates %2d: ", i);
     print_mrt_peer_record(peer);
     build_tabledump_updates(peer);
-    printf(" entries %d update size %d\n", peer->rib.count, peer->tabledump_updates.length);
+    printf(" entries %d update size %ld\n", peer->rib.count, peer->tabledump_updates.length);
   };
   for (i = large_table_count; i < tabledump->peer_count; i++) {
     struct mrt_peer_record *peer = &tabledump->peer_table[i];
@@ -371,7 +371,6 @@ void mrt_list_walker(struct mrt *mrt, struct chunk buf) {
 
 static inline void parse_mrt_TABLE_DUMP_V2(struct mrt *mrt, struct chunk buf) {
   assert(TYPE_TABLEDUMP == mrt->type);
-  // uint32_t mrt_rec_length;
   uint16_t msg_type, msg_subtype, mrt_peer_count, mrt_view_name_length;
   uint8_t peer_type;
   void *peer_entries, *peer_entries_limit;

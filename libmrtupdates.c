@@ -180,7 +180,7 @@ static inline void process_path_attributes(struct chunk msg, struct bgp4mp_bgp_s
     p += length;
   };
   if (p != limit) {
-    printf("process_path_attributes exception %p %p %p %ld %d\n", msg.data, limit, p, limit - p, msg.length);
+    printf("process_path_attributes exception %p %p %p %ld %ld\n", msg.data, limit, p, limit - p, msg.length);
   };
   assert(p == limit);
 };
@@ -261,7 +261,7 @@ struct mrt *mrt_updates_parse(struct chunk buf) {
   int found, pn;
   int ET_extension, BGP4MP_header_length, min_mrt_length;
   int is_AS4 = 0;
-  int bytes_left = buf.length;
+  int64_t bytes_left = buf.length;
   void *ptr = buf.data;
 
   mrt = calloc(1, sizeof(*mrt));
