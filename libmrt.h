@@ -107,9 +107,8 @@ struct mrt_peer_record {
 };
 
 struct mrt_tabledump {
-  int mrt_rec_count;
-  int peer_count;
-  struct mrt_peer_record *peer_table;
+  //int peer_count;
+  //struct mrt_peer_record *peer_table;
   int count_PEER_INDEX_TABLE;
   int count_RIB_IPV4_UNICAST;
   int count_RIB_IPV4_MULTICAST;
@@ -120,7 +119,7 @@ struct mrt_tabledump {
 };
 
 struct mrt_bgp4mp {
-  int mrt_msg_count;
+  int mrt_rec_count;
   int mrt_bgp_msg_count;
   int state_changes;
   int as2_discards;
@@ -131,7 +130,13 @@ struct mrt_bgp4mp {
   struct mrt_peer_record *peer_table;
 };
 
+#define TYPE_TABLEDUMP 1
+#define TYPE_BGP4MP 2
 struct mrt {
+  int type;
+  int peer_count;
+  int mrt_rec_count;
+  struct mrt_peer_record *peer_table;
   union {
     struct mrt_tabledump tabledump;
     struct mrt_bgp4mp bgp4mp;
@@ -139,18 +144,18 @@ struct mrt {
 };
 
 void build_tabledump_updates(struct mrt_peer_record *pr);
-void build_mrt_tabledump_tabledump_updates(struct mrt_tabledump *tabledump, int requested_table_size);
+void build_mrt_tabledump_tabledump_updates(struct mrt *tabledump, int requested_table_size);
 
-void build_mrt_tabledump_bgp4mp_updates(struct mrt_tabledump *tabledump, struct mrt_bgp4mp *sp);
-void write_mrt_tabledump_all_updates(struct mrt_tabledump *tabledump);
+void build_mrt_tabledump_bgp4mp_updates(struct mrt *tabledump, struct mrt_bgp4mp *sp);
+void write_mrt_tabledump_all_updates(struct mrt *tabledump);
 
-struct chunk get_updates(struct mrt_tabledump *rib, int index);
+struct chunk get_updates(struct mrt *rib, int index);
 
-struct mrt_tabledump *get_mrt_tabledump(struct chunk buf);
-void report_mrt_tabledump(struct mrt_tabledump *pt);
-void analyse_mrt_tabledump(struct mrt_tabledump *pt);
-void build_updates_mrt_tabledump(struct mrt_tabledump *tabledump, int requested_table_size);
-void sort_peer_table(struct mrt_tabledump *pt);
+struct mrt *get_mrt_tabledump(struct chunk buf);
+void report_mrt_tabledump(struct mrt *pt);
+void analyse_mrt_tabledump(struct mrt *pt);
+void build_updates_mrt_tabledump(struct mrt *tabledump, int requested_table_size);
+void sort_peer_table(struct mrt *pt);
 
 static inline int compare_bgp4mp_peer(const void *a, const void *b) {
   struct mrt_peer_record *_a = (struct mrt_peer_record *)a;
@@ -184,5 +189,5 @@ char *show_mrt_peer_record(struct mrt_peer_record *peer);
 void print_mrt_peer_record(struct mrt_peer_record *peer);
 struct chunk get_blocks_bgp4mp_peer(struct mrt_bgp4mp *sp, uint32_t as, struct in_addr ip);
 struct chunk update_fixup_localpreference(uint32_t local_preference, struct chunk update);
-int match_tabledump_bgp4mp(struct mrt_tabledump *tabledump, struct mrt_bgp4mp *updatesdump);
-int match_bgp4mp_tabledump(struct mrt_bgp4mp *updatesdump, struct mrt_tabledump *tabledump);
+int match_tabledump_bgp4mp(struct mrt *tabledump, struct mrt_bgp4mp *updatesdump);
+int match_bgp4mp_tabledump(struct mrt_bgp4mp *updatesdump, struct mrt *tabledump);

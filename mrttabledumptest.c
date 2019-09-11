@@ -9,7 +9,7 @@
 int main(int argc, char **argv) {
   struct chunk buf;
   printf("MRTc table dump test\n");
-  struct mrt_tabledump *rib = NULL;
+  struct mrt *rib = NULL;
 
   assert(1 < argc);
   buf = map_mrt_file(argv[1]);
