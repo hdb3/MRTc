@@ -37,9 +37,10 @@ int main(int argc, char **argv) {
   match_count = match_bgp4mp_tabledump(updatedump, tabledump);
   printf("matched %d update peer records in table dump\n", match_count);
 
+  /*
   mrt_summary(updatedump);
   mrt_summary(tabledump);
-  /*
+  */
   if (4 > argc)
     minimum_route_table_size = 500000;
   else {
@@ -48,11 +49,10 @@ int main(int argc, char **argv) {
       exit(1);
     };
   };
-  printf("getting peers with large route tables > %d\n",minimum_route_table_size);
+  printf("getting peers with large route tables > %d\n", minimum_route_table_size);
   build_mrt_tabledump_tabledump_updates(tabledump, minimum_route_table_size);
-  build_mrt_tabledump_bgp4mp_updates(tabledump, &mrt_bgp4mp_data);
+  build_mrt_tabledump_bgp4mp_updates(tabledump, updatedump);
   unmap_mrt_file(buf_tabledump);
   unmap_mrt_file(buf_updates);
   write_mrt_tabledump_all_updates(tabledump);
-  */
 };

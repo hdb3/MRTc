@@ -78,6 +78,7 @@ void report_bgp4mp_bgp_stats(struct bgp4mp_bgp_stats *sp) {
   printf("report_bgp4mp_bgp_stats:   %-7d Withdraws\n", sp->withdraw_count);
   printf("report_bgp4mp_bgp_stats:   %-7d MP-BGP Updates\n", sp->mpbgp_count);
   printf("report_bgp4mp_bgp_stats:   %-7d Mixed Updates\n", sp->mixed_update_count);
+  printf("report_bgp4mp_bgp_stats:   %-7d Zero NLRI Update\n", sp->zero_nrli_count);
   printf("report_bgp4mp_bgp_stats:   %-7d End-of-RIB\n", sp->eor_count);
   printf("report_bgp4mp_bgp_stats:     %-7d IBGP count\n", sp->ibgp_count);
   printf("report_bgp4mp_bgp_stats:     %-7d MED count\n", sp->med_count);
@@ -185,6 +186,7 @@ static inline void process_path_attributes(struct chunk msg, struct bgp4mp_bgp_s
   assert(p == limit);
 };
 
+static int zero_nrli_flag = 1;
 static inline int process_bgp_message(struct chunk msg, struct bgp4mp_bgp_stats *sp) {
   assert(18 < msg.length);
   uint16_t length = getw16(msg.data + 16);
@@ -217,9 +219,18 @@ static inline int process_bgp_message(struct chunk msg, struct bgp4mp_bgp_stats 
           sp->update_count++;
           is_update = 1;
         }
-      } else {                   // withdraw_length non-zero
-        assert(0 < nlri_length); // can't have path attributes and withdraw with no NLRI!
-                                 // combined withdraw and update
+      } else { // withdraw_length non-zero
+        if (0 == nlri_length && zero_nrli_flag) {
+          printf("Update with path attributes and no NLRI at msg# %d\n", sp->msg_count);
+          // write_chunk("debug.bin",msg);
+          // print_chunk(msg);
+          // print_chunk((struct chunk){msg.data + 23 + withdraw_length, pathattributes_length});
+          zero_nrli_flag = 0;
+          sp->zero_nrli_count++;
+        };
+        // assert(0 < nlri_length); // shouldn't have path attributes and withdraw with no NLRI!
+        // but they are out there!!!
+        // combined withdraw and update
         sp->mixed_update_count++;
       };
     };

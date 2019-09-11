@@ -70,6 +70,7 @@ struct bgp4mp_bgp_stats {
   int withdraw_count;
   int mixed_update_count;
   int mpbgp_count;
+  int zero_nrli_count;
   // path attribute level
   int med_count;
   int ibgp_count;
