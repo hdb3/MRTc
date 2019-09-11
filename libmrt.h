@@ -119,15 +119,15 @@ struct mrt_tabledump {
 };
 
 struct mrt_bgp4mp {
-  int mrt_rec_count;
+  //int mrt_rec_count;
   int mrt_bgp_msg_count;
   int state_changes;
   int as2_discards;
   int ipv6_discards;
   struct msg_list_item *msg_list_head, *msg_list_tail;
   int msg_list_length;
-  int peer_count;
-  struct mrt_peer_record *peer_table;
+  //int peer_count;
+  //struct mrt_peer_record *peer_table;
 };
 
 #define TYPE_TABLEDUMP 1
@@ -146,7 +146,7 @@ struct mrt {
 void build_tabledump_updates(struct mrt_peer_record *pr);
 void build_mrt_tabledump_tabledump_updates(struct mrt *tabledump, int requested_table_size);
 
-void build_mrt_tabledump_bgp4mp_updates(struct mrt *tabledump, struct mrt_bgp4mp *sp);
+void build_mrt_tabledump_bgp4mp_updates(struct mrt *tabledump, struct mrt *updatedump);
 void write_mrt_tabledump_all_updates(struct mrt *tabledump);
 
 struct chunk get_updates(struct mrt *rib, int index);
@@ -163,12 +163,12 @@ static inline int compare_bgp4mp_peer(const void *a, const void *b) {
   return (_b->bgp4mp.update_count - _a->bgp4mp.update_count);
 };
 
-static inline void sort_bgp4mp_peers(struct mrt_bgp4mp *sp) {
+static inline void sort_bgp4mp_peers(struct mrt *sp) {
   qsort(sp->peer_table, sp->peer_count, sizeof(struct mrt_peer_record), compare_bgp4mp_peer);
 };
 
 void report_bgp4mp_bgp_stats(struct bgp4mp_bgp_stats *sp);
-void report_mrt_bgp4mp(struct mrt_bgp4mp *sp);
+void report_mrt_bgp4mp(struct mrt *sp);
 
 static inline uint16_t getw16(void *p) { return __bswap_16(*(uint16_t *)p); };
 
@@ -179,15 +179,15 @@ void unmap_mrt_file(struct chunk ch);
 void write_chunk(const char *fname, struct chunk buf);
 struct chunk map_mrt_file(char *fname);
 
-void mrt_parse(struct chunk buf, struct mrt_bgp4mp *sp);
-struct chunk *get_blocks_bgp4mp(struct mrt_bgp4mp *sp, int nblocks);
-struct chunk get_one_bgp4mp(struct mrt_bgp4mp *sp, int peer, int msg_number);
+struct mrt *mrt_parse(struct chunk buf);
+struct chunk *get_blocks_bgp4mp(struct mrt *sp, int nblocks);
+struct chunk get_one_bgp4mp(struct mrt *sp, int peer, int msg_number);
 
 int count_msg_list(struct msg_list_item *list);
 struct msg_list_item *filter_msgs(struct msg_list_item *list, struct bgp4mp_bgp_stats *spb);
 char *show_mrt_peer_record(struct mrt_peer_record *peer);
 void print_mrt_peer_record(struct mrt_peer_record *peer);
-struct chunk get_blocks_bgp4mp_peer(struct mrt_bgp4mp *sp, uint32_t as, struct in_addr ip);
+struct chunk get_blocks_bgp4mp_peer(struct mrt *sp, uint32_t as, struct in_addr ip);
 struct chunk update_fixup_localpreference(uint32_t local_preference, struct chunk update);
-int match_tabledump_bgp4mp(struct mrt *tabledump, struct mrt_bgp4mp *updatesdump);
-int match_bgp4mp_tabledump(struct mrt_bgp4mp *updatesdump, struct mrt *tabledump);
+int match_tabledump_bgp4mp(struct mrt *tabledump, struct mrt *updatesdump);
+int match_bgp4mp_tabledump(struct mrt *updatesdump, struct mrt *tabledump);

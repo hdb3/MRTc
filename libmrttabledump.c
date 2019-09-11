@@ -218,7 +218,7 @@ void write_mrt_tabledump_all_updates(struct mrt *tabledump) {
   };
 };
 
-void build_mrt_tabledump_bgp4mp_updates(struct mrt *tabledump, struct mrt_bgp4mp *sp) {
+void build_mrt_tabledump_bgp4mp_updates(struct mrt *tabledump, struct mrt *updatedump) {
   int i;
   assert(TYPE_TABLEDUMP == tabledump->type);
   for (i = 0; i < tabledump->peer_count; i++) {
@@ -226,7 +226,7 @@ void build_mrt_tabledump_bgp4mp_updates(struct mrt *tabledump, struct mrt_bgp4mp
     assert(!peer->is_ipv6);
     printf("building bgp4mp_updates    %2d: ", i);
     print_mrt_peer_record(peer);
-    struct chunk bgp4mp_updates = get_blocks_bgp4mp_peer(sp, peer->peer_as, peer->peer_ip);
+    struct chunk bgp4mp_updates = get_blocks_bgp4mp_peer(updatedump, peer->peer_as, peer->peer_ip);
     printf(" update size %d\n", bgp4mp_updates.length);
     peer->bgp4mp_updates = bgp4mp_updates;
   };
