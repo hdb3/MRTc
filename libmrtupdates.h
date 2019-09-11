@@ -3,7 +3,7 @@ void show_bgp4mp_peer_address(struct mrt_peer_record *peer);
 void report_bgp4mp_bgp_stats(struct bgp4mp_bgp_stats *sp);
 struct chunk get_one_bgp4mp(struct mrt *mrt, int peer, int msg_number);
 struct chunk *get_blocks_bgp4mp(struct mrt *mrt, int nblocks);
-struct chunk get_blocks_bgp4mp_peer(struct mrt *mrt, uint32_t as, struct in_addr ip);
+struct chunk get_blocks_bgp4mp_peer(struct mrt_peer_record *peer);
 void report_mrt_bgp4mp(struct mrt *mrt);
 static inline void process_path_attribute(uint8_t type_code, struct chunk msg, struct bgp4mp_bgp_stats *sp);
 static inline void process_path_attributes(struct chunk msg, struct bgp4mp_bgp_stats *sp);

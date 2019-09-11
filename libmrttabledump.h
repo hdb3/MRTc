@@ -3,8 +3,6 @@ struct chunk build_update(void *target, const struct chunk withdrawn, const stru
 struct chunk fixup_localpreference(uint32_t local_preference, struct chunk path_attributes);
 struct chunk update_fixup_localpreference(uint32_t local_preference, struct chunk update);
 void build_tabledump_updates(struct mrt_peer_record *pr);
-char *show_mrt_peer_record(struct mrt_peer_record *peer);
-void print_mrt_peer_record(struct mrt_peer_record *peer);
 void sort_peer_table(struct mrt *tabledump);
 void analyse_mrt_tabledump(struct mrt *tabledump);
 void write_mrt_tabledump_all_updates(struct mrt *tabledump);

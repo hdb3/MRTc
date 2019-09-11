@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <arpa/inet.h>
 #include <assert.h>
 #include <fcntl.h>
@@ -76,4 +77,23 @@ struct chunk map_mrt_file(char *fname) {
   close(fd);
   printf("opened %s file size %ld\n", fname, sb.st_size);
   return (struct chunk){buf, sb.st_size};
+};
+
+static char *_show_mrt_peer_record = NULL;
+char *show_mrt_peer_record(struct mrt_peer_record *peer) {
+  if (NULL != _show_mrt_peer_record)
+    free(_show_mrt_peer_record);
+  char peer_bgpid_str[INET_ADDRSTRLEN];
+  char peer_ip_str[INET6_ADDRSTRLEN];
+  if (peer->is_ipv6)
+    inet_ntop(AF_INET6, &peer->peer_ip6, peer_ip_str, INET6_ADDRSTRLEN);
+  else
+    inet_ntop(AF_INET, &peer->peer_ip, peer_ip_str, INET_ADDRSTRLEN);
+  inet_ntop(AF_INET, &peer->peer_bgpid, peer_bgpid_str, INET_ADDRSTRLEN);
+  assert(asprintf(&_show_mrt_peer_record, "[%-3d %-15s AS%-6d %-15s]", peer->mrt_file_index, peer_ip_str, peer->peer_as, peer_bgpid_str));
+  return _show_mrt_peer_record;
+};
+
+void print_mrt_peer_record(struct mrt_peer_record *peer) {
+  fputs(show_mrt_peer_record(peer), stdout);
 };

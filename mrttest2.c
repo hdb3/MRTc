@@ -37,6 +37,8 @@ int main(int argc, char **argv) {
   match_count = match_bgp4mp_tabledump(updatedump, tabledump);
   printf("matched %d update peer records in table dump\n", match_count);
 
+  mrt_summary(updatedump);
+  mrt_summary(tabledump);
   /*
   if (4 > argc)
     minimum_route_table_size = 500000;

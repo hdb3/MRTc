@@ -1,6 +1,7 @@
 #include <arpa/inet.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #define MIN_MRT_LENGTH 12
 #define MIN_MRT_LENGTH_ET 16
 #define BGP4MP_IPV4_PEER_HEADER_LENGTH 20
@@ -104,6 +105,10 @@ struct mrt_peer_record {
     struct bgp4mp_peer bgp4mp;
   };
   int8_t is_ipv6;
+};
+
+static int peer_addr_compare(struct mrt_peer_record *peer_a, struct mrt_peer_record *peer_b) {
+  return (peer_a->is_ipv6 == peer_a->is_ipv6) && ((peer_a->is_ipv6) ? (0 == memcmp(&peer_a->peer_ip6, &peer_b->peer_ip6, sizeof(peer_a->peer_ip6))) : (0 == memcmp(&peer_a->peer_ip, &peer_b->peer_ip, sizeof(peer_a->peer_ip))));
 };
 
 struct mrt_tabledump {

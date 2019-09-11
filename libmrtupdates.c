@@ -131,15 +131,10 @@ struct chunk *get_blocks_bgp4mp(struct mrt *mrt, int nblocks) {
   return blocks;
 };
 
-struct chunk get_blocks_bgp4mp_peer(struct mrt *mrt, uint32_t as, struct in_addr ip) {
-  assert(TYPE_BGP4MP == mrt->type);
-  struct mrt_peer_record *peer;
-  peer = lookup_mrt_peer(mrt, as, ip);
-  if (NULL != peer) {
-    printf(" matched update peer with table dump peer %3d ", peer->mrt_file_index);
-    return update_block_builder(peer->bgp4mp.update_list_head);
-  } else
-    return (struct chunk){NULL, 0};
+// todo this is an unneeded level of indirection now
+// because the match is done already....
+struct chunk get_blocks_bgp4mp_peer(struct mrt_peer_record *peer) {
+  return update_block_builder(peer->bgp4mp.update_list_head);
 };
 
 void report_mrt_bgp4mp(struct mrt *mrt) {
