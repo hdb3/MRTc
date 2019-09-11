@@ -174,7 +174,7 @@ void unmap_mrt_file(struct chunk ch);
 void write_chunk(const char *fname, struct chunk buf);
 struct chunk map_mrt_file(char *fname);
 
-struct mrt *mrt_parse(struct chunk buf);
+struct mrt *mrt_updates_parse(struct chunk buf);
 struct chunk *get_blocks_bgp4mp(struct mrt *sp, int nblocks);
 struct chunk get_one_bgp4mp(struct mrt *sp, int peer, int msg_number);
 
@@ -186,3 +186,4 @@ struct chunk get_blocks_bgp4mp_peer(struct mrt *sp, uint32_t as, struct in_addr 
 struct chunk update_fixup_localpreference(uint32_t local_preference, struct chunk update);
 int match_tabledump_bgp4mp(struct mrt *tabledump, struct mrt *updatesdump);
 int match_bgp4mp_tabledump(struct mrt *updatesdump, struct mrt *tabledump);
+struct mrt_peer_record *lookup_mrt_peer(struct mrt *mrt, uint32_t as, struct in_addr ip);
