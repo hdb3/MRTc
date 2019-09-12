@@ -60,9 +60,10 @@ int filter_updates_on_size(struct mrt *mrt, int min_size) {
       // printf("YES\n");
     };
   };
+  int removed = mrt->peer_count - remaining;
   mrt->peer_count = remaining;
   mrt->peer_table = realloc(mrt->peer_table, remaining * sizeof(struct mrt_peer_record));
-  return remaining;
+  return removed;
 };
 
 struct mrt_peer_record *lookup_mrt_peer(struct mrt *mrt, struct mrt_peer_record *key) {

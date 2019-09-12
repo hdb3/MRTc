@@ -86,12 +86,18 @@ void report_mrt_bgp4mp(struct mrt *mrt) {
     add_bgp4mp_bgp_stats(&bgp_stats, &mrt->peer_table[i].bgp4mp.bgp_stats);
   };
   printf("report_mrt_bgp4mp: %d MRT items\n", mrt->mrt_rec_count);
+  printf("report_mrt_bgp4mp: %d peers\n", mrt->peer_count);
   printf("report_mrt_bgp4mp:    %d messages, %d state changes\n", mrt->bgp4mp.mrt_bgp_msg_count, mrt->bgp4mp.state_changes);
   if (0 < mrt->bgp4mp.ipv6_discards)
     printf("report_mrt_bgp4mp:    discarded %d IPv6 items\n", mrt->bgp4mp.ipv6_discards);
   if (0 < mrt->bgp4mp.as2_discards)
     printf("report_mrt_bgp4mp:    discarded %d AS2 items\n", mrt->bgp4mp.as2_discards);
   report_bgp4mp_bgp_stats(&bgp_stats);
+};
+
+void report_mrt_bgp4mp_peers(struct mrt *mrt) {
+  assert(TYPE_BGP4MP == mrt->type);
+  int i;
   printf("report_mrt_bgp4mp: peer                                                                                      MRT       BGP       filtered  MPBGP\n");
   printf("report_mrt_bgp4mp: index                                                                                     records   msgs      updates   updates\n");
   for (i = 0; i < mrt->peer_count; i++) {

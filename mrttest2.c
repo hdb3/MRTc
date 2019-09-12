@@ -29,11 +29,16 @@ void process(char *fn_tabledump, char *fn_update) {
   buf_updates = map_mrt_file(fn_update);
 
   updatedump = mrt_updates_parse(buf_updates);
+  printf("removing IPv4 inactive peers");
+  fflush(stdout);
+  int removed = filter_updates_on_size(updatedump, 1);
+  printf(" - removed %d\n", removed);
   printf("full data analysis before peer selection\n");
   report_mrt_bgp4mp(updatedump);
-  int filter_count = filter_updates_on_size(updatedump, minimum_update_count);
-  printf("\nretained %d update peer records after trimming to > %d\n", filter_count, minimum_update_count);
+  removed = filter_updates_on_size(updatedump, minimum_update_count);
+  printf("\nremoved %d update peer records while trimming to > %d\n", removed, minimum_update_count);
   report_mrt_bgp4mp(updatedump);
+  report_mrt_bgp4mp_peers(updatedump);
 
   exit(0);
 

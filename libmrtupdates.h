@@ -5,6 +5,7 @@ void report_bgp4mp_bgp_stats(struct bgp4mp_bgp_stats *sp);
 // struct chunk *get_blocks_bgp4mp(struct mrt *mrt, int nblocks);
 struct chunk get_blocks_bgp4mp_peer(struct mrt_peer_record *peer);
 void report_mrt_bgp4mp(struct mrt *mrt);
+void report_mrt_bgp4mp_peers(struct mrt *mrt);
 void initialise_bgp4mp_peer(struct mrt_peer_record *peer);
 struct mrt *mrt_updates_parse(struct chunk buf);
 //int count_update_list(struct update_list_item *list);
