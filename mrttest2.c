@@ -22,7 +22,6 @@ void process(char *fn_tabledump, char *fn_update) {
   tabledump = get_mrt_tabledump(buf_tabledump);
   report_mrt_tabledump(tabledump);
   int ignore = trim_mrt_tabledump_size(tabledump, 1);
-  //report_mrt_tabledump_peers(tabledump);
   printf("removing short tables (<%d)", minimum_route_table_size);
   fflush(stdout);
   int removed = trim_mrt_tabledump_size(tabledump, minimum_route_table_size);
@@ -46,17 +45,28 @@ void process(char *fn_tabledump, char *fn_update) {
   report_mrt_bgp4mp(updatedump);
   report_mrt_bgp4mp_peers(updatedump);
 
-  // exit(0);
-
   // Combined processing stage
   printf("\nCombined processing stage\n\n");
 
-  mrt_summary(tabledump);
-  mrt_summary(updatedump);
+  //mrt_summary(tabledump);
+  //mrt_summary(updatedump);
   int match_count = match_bgp4mp_tabledump(updatedump, tabledump);
   printf("matched %d update peer records in table dump\n", match_count);
-  match_count = match_tabledump_bgp4mp(tabledump, updatedump);
-  printf("matched %d tabledump peer records in updates\n", match_count);
+
+  assert(match_count == match_tabledump_bgp4mp(tabledump, updatedump));
+  // match_count = match_tabledump_bgp4mp(tabledump, updatedump);
+  // printf("matched %d tabledump peer records in updates\n", match_count);
+  //
+  int tabledump_unlinked = trim_mrt_tabledump_unlinked(tabledump);
+  printf("removed %d unlinked tabledump peers\n", tabledump_unlinked);
+  int updatedump_unlinked = filter_updates_unlinked(updatedump);
+  printf("removed %d unlinked updatedump peers\n", updatedump_unlinked);
+
+  // rebuild the links after table rearrangment
+  assert(updatedump->peer_count == tabledump->peer_count);
+  mrt_clear_links(updatedump, tabledump);
+  assert(tabledump->peer_count == match_bgp4mp_tabledump(updatedump, tabledump));
+  assert(tabledump->peer_count == match_tabledump_bgp4mp(tabledump, updatedump));
   mrt_summary(tabledump);
   mrt_summary(updatedump);
 

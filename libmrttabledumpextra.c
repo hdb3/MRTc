@@ -153,9 +153,11 @@ int trim_mrt_tabledump_size(struct mrt *tabledump, int requested_table_size) {
   sort_peer_table(tabledump);
   for (i = 0; i < tabledump->peer_count; i++) {
     struct mrt_peer_record *peer = &tabledump->peer_table[i];
-    if (requested_table_size <= peer->rib.count)
+    if (requested_table_size <= peer->rib.count) {
+      if (i != retained)
+        tabledump->peer_table[retained] = *peer;
       retained++;
-    else {
+    } else {
       assert(NULL == peer->tabledump_updates.data);
       assert(0 == peer->tabledump_updates.length);
       free(peer->rib.table);
@@ -163,5 +165,29 @@ int trim_mrt_tabledump_size(struct mrt *tabledump, int requested_table_size) {
   };
   int removed = tabledump->peer_count - retained;
   tabledump->peer_count = retained;
+  tabledump->peer_table = realloc(tabledump->peer_table, retained * sizeof(struct mrt_peer_record));
+  return removed;
+};
+
+int trim_mrt_tabledump_unlinked(struct mrt *tabledump) {
+  int i;
+  int retained = 0;
+  assert(TYPE_TABLEDUMP == tabledump->type);
+  sort_peer_table(tabledump);
+  for (i = 0; i < tabledump->peer_count; i++) {
+    struct mrt_peer_record *peer = &tabledump->peer_table[i];
+    if (peer->link) {
+      if (i != retained)
+        tabledump->peer_table[retained] = *peer;
+      retained++;
+    } else {
+      assert(NULL == peer->tabledump_updates.data);
+      assert(0 == peer->tabledump_updates.length);
+      free(peer->rib.table);
+    };
+  };
+  int removed = tabledump->peer_count - retained;
+  tabledump->peer_count = retained;
+  tabledump->peer_table = realloc(tabledump->peer_table, retained * sizeof(struct mrt_peer_record));
   return removed;
 };

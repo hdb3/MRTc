@@ -41,6 +41,29 @@ void sort_bgp4mp_peers(struct mrt *mrt) {
   qsort(mrt->peer_table, mrt->peer_count, sizeof(struct mrt_peer_record), compare_bgp4mp_peer);
 };
 
+int filter_updates_unlinked(struct mrt *mrt) {
+  int i, retained;
+  struct mrt_peer_record *peer;
+  assert(TYPE_BGP4MP == mrt->type);
+  retained = 0;
+  for (i = 0; i < mrt->peer_count; i++) {
+    peer = &mrt->peer_table[i];
+    if (peer->link) {
+      if (i != retained) // neccessary because list is not sorted on this property
+        mrt->peer_table[retained] = *peer;
+      retained++;
+    } else {
+      free_update_list(peer->bgp4mp.update_list_head);
+      peer->bgp4mp.update_list_head = NULL;
+      peer->bgp4mp.update_list_tail = NULL;
+    };
+  };
+  int removed = mrt->peer_count - retained;
+  mrt->peer_count = retained;
+  mrt->peer_table = realloc(mrt->peer_table, retained * sizeof(struct mrt_peer_record));
+  return removed;
+};
+
 int filter_updates_on_size(struct mrt *mrt, int min_size) {
   int i, remaining;
   struct mrt_peer_record *peer;
@@ -56,6 +79,7 @@ int filter_updates_on_size(struct mrt *mrt, int min_size) {
       peer->bgp4mp.update_list_head = NULL;
       peer->bgp4mp.update_list_tail = NULL;
     } else {
+      assert(remaining == i); // should be true if the list was sorted
       remaining++;
       // printf("YES\n");
     };
@@ -99,6 +123,18 @@ int match_tabledump_bgp4mp(struct mrt *tabledump, struct mrt *updatesdump) {
   return matched;
 };
 
+void mrt_clear_links(struct mrt *updatesdump, struct mrt *tabledump) {
+  assert(TYPE_BGP4MP == updatesdump->type);
+  assert(TYPE_TABLEDUMP == tabledump->type);
+  int i;
+
+  for (i = 0; i < updatesdump->peer_count; i++)
+    updatesdump->peer_table[i].link = NULL;
+
+  for (i = 0; i < tabledump->peer_count; i++)
+    tabledump->peer_table[i].link = NULL;
+};
+
 int match_bgp4mp_tabledump(struct mrt *updatesdump, struct mrt *tabledump) {
   assert(TYPE_BGP4MP == updatesdump->type);
   assert(TYPE_TABLEDUMP == tabledump->type);
@@ -109,6 +145,8 @@ int match_bgp4mp_tabledump(struct mrt *updatesdump, struct mrt *tabledump) {
     updatesdump_peer = &updatesdump->peer_table[i];
     if (tabledump_peer = lookup_mrt_peer(tabledump, updatesdump_peer)) {
       matched++;
+      // assertions only valid on first pass, probably should explicitly clear them
+      // after table rearrangement
       assert(NULL == updatesdump_peer->link || tabledump_peer == updatesdump_peer->link);
       updatesdump_peer->link = tabledump_peer;
       assert(NULL == tabledump_peer->link || updatesdump_peer == tabledump_peer->link);
