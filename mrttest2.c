@@ -22,6 +22,10 @@ void process(char *fn_tabledump, char *fn_update) {
   tabledump = get_mrt_tabledump(buf_tabledump);
   report_mrt_tabledump(tabledump);
   analyse_mrt_tabledump(tabledump);
+  printf("removing short tables (<%d)", minimum_route_table_size);
+  fflush(stdout);
+  int removed = trim_mrt_tabledump_size(tabledump, minimum_route_table_size);
+  printf(" - removed %d\n", removed);
 
   // Update processing stage
   printf("update processing stage\n\n");
@@ -31,7 +35,7 @@ void process(char *fn_tabledump, char *fn_update) {
   updatedump = mrt_updates_parse(buf_updates);
   printf("removing IPv4 inactive peers");
   fflush(stdout);
-  int removed = filter_updates_on_size(updatedump, 1);
+  removed = filter_updates_on_size(updatedump, 1);
   printf(" - removed %d\n", removed);
   printf("full data analysis before peer selection\n");
   report_mrt_bgp4mp(updatedump);
