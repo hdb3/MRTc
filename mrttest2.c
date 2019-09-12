@@ -22,7 +22,7 @@ void process(char *fn_tabledump, char *fn_update) {
   tabledump = get_mrt_tabledump(buf_tabledump);
   report_mrt_tabledump(tabledump);
   int ignore = trim_mrt_tabledump_size(tabledump, 1);
-  report_mrt_tabledump_peers(tabledump);
+  //report_mrt_tabledump_peers(tabledump);
   printf("removing short tables (<%d)", minimum_route_table_size);
   fflush(stdout);
   int removed = trim_mrt_tabledump_size(tabledump, minimum_route_table_size);
@@ -46,36 +46,30 @@ void process(char *fn_tabledump, char *fn_update) {
   report_mrt_bgp4mp(updatedump);
   report_mrt_bgp4mp_peers(updatedump);
 
-  exit(0);
+  // exit(0);
 
   // Combined processing stage
+  printf("\nCombined processing stage\n\n");
 
-  //mrt_summary(tabledump);
-  //update_list = updatedump->bgp4mp.update_list_head;
-  //printf("got %d messages from %s\n", count_update_list(update_list), argv[1]);
-  //update_list = filter_msgs(update_list, &bgp_stats);
-  //printf("got %d messages after filtering\n", count_update_list(update_list));
-  // report_mrt_bgp4mp(updatedump);
-  //report_bgp4mp_bgp_stats(&bgp_stats);
-  // match_count = match_bgp4mp_tabledump(updatedump, tabledump);
-  // printf("matched %d update peer records in table dump\n", match_count);
-
-  /*
-  mrt_summary(updatedump);
   mrt_summary(tabledump);
-  */
-  printf("getting peers with large route tables > %d\n", minimum_route_table_size);
-  // filter_tabledump_on_ipv4(tabledump, minimum_route_table_size);
-  // filter_tabledump_on_size(tabledump, minimum_route_table_size);
-  int match_count = match_tabledump_bgp4mp(tabledump, updatedump);
+  mrt_summary(updatedump);
+  int match_count = match_bgp4mp_tabledump(updatedump, tabledump);
+  printf("matched %d update peer records in table dump\n", match_count);
+  match_count = match_tabledump_bgp4mp(tabledump, updatedump);
   printf("matched %d tabledump peer records in updates\n", match_count);
+  mrt_summary(tabledump);
   mrt_summary(updatedump);
 
-  // build_mrt_tabledump_tabledump_updates(tabledump, minimum_route_table_size);
-  // build_mrt_tabledump_bgp4mp_updates(tabledump, updatedump);
+  exit(0);
+
+  // Output processing stage
+  printf("\nOutput processing stage\n\n");
+
+  build_mrt_tabledump_updates(tabledump);
+  build_mrt_tabledump_bgp4mp_updates(tabledump, updatedump);
   unmap_mrt_file(buf_tabledump);
   unmap_mrt_file(buf_updates);
-  // write_mrt_tabledump_all_updates(tabledump);
+  write_mrt_tabledump_all_updates(tabledump);
 };
 
 int main(int argc, char **argv) {
