@@ -92,13 +92,13 @@ void report_mrt_bgp4mp(struct mrt *mrt) {
   if (0 < mrt->bgp4mp.as2_discards)
     printf("report_mrt_bgp4mp:    discarded %d AS2 items\n", mrt->bgp4mp.as2_discards);
   report_bgp4mp_bgp_stats(&bgp_stats);
-  printf("report_mrt_bgp4mp: peer                                                                                      MRT       BGP       filtered\n");
-  printf("report_mrt_bgp4mp: index                                                                                     records   msgs      updates\n");
+  printf("report_mrt_bgp4mp: peer                                                                                      MRT       BGP       filtered  MPBGP\n");
+  printf("report_mrt_bgp4mp: index                                                                                     records   msgs      updates   updates\n");
   for (i = 0; i < mrt->peer_count; i++) {
     struct mrt_peer_record *peer = &mrt->peer_table[i];
     printf("report_mrt_bgp4mp: %-3d", i);
     show_bgp4mp_peer_address(peer);
-    printf(" %-8d  %-8d  %-8d\n", peer->bgp4mp.rec_count, peer->bgp4mp.bgp_msg_count, peer->bgp4mp.update_count);
+    printf(" %-8d  %-8d  %-8d  %-8d\n", peer->bgp4mp.rec_count, peer->bgp4mp.bgp_msg_count, peer->bgp4mp.update_count, peer->bgp4mp.bgp_stats.mpbgp_count);
   };
 };
 
