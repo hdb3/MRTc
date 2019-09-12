@@ -12,6 +12,24 @@
 
 #include "libmrt.h"
 
+void add_bgp4mp_bgp_stats(struct bgp4mp_bgp_stats *to, struct bgp4mp_bgp_stats *from) {
+  to->msg_count += from->msg_count;
+  to->open_count += from->open_count;
+  to->all_update_count += from->all_update_count;
+  to->notification_count += from->notification_count;
+  to->keepalive_count += from->keepalive_count;
+
+  to->update_count += from->update_count;
+  to->eor_count += from->eor_count;
+  to->withdraw_count += from->withdraw_count;
+  to->mixed_update_count += from->mixed_update_count;
+  to->mpbgp_count += from->mpbgp_count;
+  to->zero_nrli_count += from->zero_nrli_count;
+
+  to->med_count += from->med_count;
+  to->ibgp_count += from->ibgp_count;
+};
+
 static inline int compare_bgp4mp_peer(const void *a, const void *b) {
   struct mrt_peer_record *_a = (struct mrt_peer_record *)a;
   struct mrt_peer_record *_b = (struct mrt_peer_record *)b;
