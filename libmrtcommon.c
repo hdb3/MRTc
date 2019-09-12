@@ -100,7 +100,7 @@ char *show_mrt_peer_record(struct mrt_peer_record *peer) {
   else
     inet_ntop(AF_INET, &peer->peer_ip, peer_ip_str, INET_ADDRSTRLEN);
   inet_ntop(AF_INET, &peer->peer_bgpid, peer_bgpid_str, INET_ADDRSTRLEN);
-  assert(asprintf(&_show_mrt_peer_record, "[%-3d %-15s AS%-6d %-15s]", peer->mrt_file_index, peer_ip_str, peer->peer_as, peer_bgpid_str));
+  assert(asprintf(&_show_mrt_peer_record, "[%-3d %-24s AS%-6d %-15s]", peer->mrt_file_index, peer_ip_str, peer->peer_as, peer_bgpid_str));
   return _show_mrt_peer_record;
 };
 

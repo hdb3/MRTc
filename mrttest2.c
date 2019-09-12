@@ -21,11 +21,13 @@ void process(char *fn_tabledump, char *fn_update) {
 
   tabledump = get_mrt_tabledump(buf_tabledump);
   report_mrt_tabledump(tabledump);
-  analyse_mrt_tabledump(tabledump);
+  int ignore = trim_mrt_tabledump_size(tabledump, 1);
+  report_mrt_tabledump_peers(tabledump);
   printf("removing short tables (<%d)", minimum_route_table_size);
   fflush(stdout);
   int removed = trim_mrt_tabledump_size(tabledump, minimum_route_table_size);
   printf(" - removed %d\n", removed);
+  report_mrt_tabledump_peers(tabledump);
 
   // Update processing stage
   printf("update processing stage\n\n");

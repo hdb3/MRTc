@@ -151,4 +151,5 @@ static inline uint32_t getw32(void *p) { return __bswap_32(*(uint32_t *)p); };
 #include "libmrtcommon.h"
 #include "libmrtextra.h"
 #include "libmrttabledump.h"
+#include "libmrttabledumpextra.h"
 #include "libmrtupdates.h"

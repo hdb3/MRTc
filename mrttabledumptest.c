@@ -15,7 +15,7 @@ int main(int argc, char **argv) {
   buf = map_mrt_file(argv[1]);
   mrt = get_mrt_tabledump(buf);
   report_mrt_tabledump(mrt);
-  analyse_mrt_tabledump(mrt);
+  // analyse_mrt_tabledump(mrt);
   printf("removing short tables (<%d)", MIN_TABLE_SIZE);
   fflush(stdout);
   int removed = trim_mrt_tabledump_size(mrt, MIN_TABLE_SIZE);
