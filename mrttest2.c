@@ -15,59 +15,79 @@ void process(char *fn_tabledump, char *fn_update) {
   struct mrt *tabledump, *updatedump;
 
   // table dump processing stage
-  printf("table dump processing stage\n\n");
+  if (unquiet)
+    printf("\nTable dump processing stage\n\n");
 
   buf_tabledump = map_mrt_file(fn_tabledump);
 
   tabledump = get_mrt_tabledump(buf_tabledump);
-  report_mrt_tabledump(tabledump);
+  if (verbose)
+    report_mrt_tabledump(tabledump);
   int ignore = trim_mrt_tabledump_size(tabledump, 1);
-  printf("removing short tables (<%d)", minimum_route_table_size);
-  fflush(stdout);
+  if (verbose) {
+    printf("removing short tables (<%d)", minimum_route_table_size);
+    fflush(stdout);
+  };
   int removed = trim_mrt_tabledump_size(tabledump, minimum_route_table_size);
-  printf(" - removed %d\n", removed);
-  report_mrt_tabledump_peers(tabledump);
+  if (verbose)
+    printf(" - removed %d\n", removed);
+
+  if (verbose)
+    report_mrt_tabledump_peers(tabledump);
 
   // Update processing stage
-  printf("update processing stage\n\n");
+  if (unquiet)
+    printf("update processing stage\n\n");
 
   buf_updates = map_mrt_file(fn_update);
 
   updatedump = mrt_updates_parse(buf_updates);
-  printf("removing IPv4 inactive peers");
-  fflush(stdout);
+  if (verbose) {
+    printf("removing IPv4 inactive peers");
+    fflush(stdout);
+  };
   removed = filter_updates_on_size(updatedump, 1);
-  printf(" - removed %d\n", removed);
-  printf("full data analysis before peer selection\n");
-  report_mrt_bgp4mp(updatedump);
+  if (verbose) {
+    printf(" - removed %d\n", removed);
+    printf("full data analysis before peer selection\n");
+    report_mrt_bgp4mp(updatedump);
+  };
   removed = filter_updates_on_size(updatedump, minimum_update_count);
-  printf("\nremoved %d update peer records while trimming to > %d\n", removed, minimum_update_count);
-  report_mrt_bgp4mp(updatedump);
-  report_mrt_bgp4mp_peers(updatedump);
+  if (verbose) {
+    printf("\nremoved %d update peer records while trimming to > %d\n", removed, minimum_update_count);
+    report_mrt_bgp4mp(updatedump);
+    report_mrt_bgp4mp_peers(updatedump);
+  };
 
   // Combined processing stage
-  printf("\nCombined processing stage\n\n");
+  if (unquiet)
+    printf("\nCombined processing stage\n\n");
 
   int match_count = match_bgp4mp_tabledump(updatedump, tabledump);
-  printf("matched %d update peer records in table dump\n", match_count);
+  if (verbose)
+    printf("matched %d update peer records in table dump\n", match_count);
 
   assert(match_count == match_tabledump_bgp4mp(tabledump, updatedump));
   int tabledump_unlinked = trim_mrt_tabledump_unlinked(tabledump);
-  printf("removed %d unlinked tabledump peers\n", tabledump_unlinked);
+  if (verbose)
+    printf("removed %d unlinked tabledump peers\n", tabledump_unlinked);
   int updatedump_unlinked = filter_updates_unlinked(updatedump);
-  printf("removed %d unlinked updatedump peers\n", updatedump_unlinked);
+  if (verbose)
+    printf("removed %d unlinked updatedump peers\n", updatedump_unlinked);
 
   // rebuild the links after table rearrangment
   assert(updatedump->peer_count == tabledump->peer_count);
   mrt_clear_links(updatedump, tabledump);
   assert(tabledump->peer_count == match_bgp4mp_tabledump(updatedump, tabledump));
   assert(tabledump->peer_count == match_tabledump_bgp4mp(tabledump, updatedump));
-  mrt_link_summary(updatedump);
+  if (unquiet)
+    mrt_link_summary(updatedump);
 
-  exit(0);
+  // exit(0);
 
   // Output processing stage
-  printf("\nOutput processing stage\n\n");
+  if (unquiet)
+    printf("\nOutput processing stage\n\n");
 
   build_mrt_tabledump_updates(tabledump);
   build_mrt_tabledump_bgp4mp_updates(tabledump, updatedump);
@@ -76,7 +96,7 @@ void process(char *fn_tabledump, char *fn_update) {
   write_mrt_tabledump_all_updates(tabledump);
 };
 
-int main(int argc, char **argv) {
+int main2(int argc, char **argv) {
 
   printf("MRTc match table dump and updates\n");
   assert(2 < argc);
@@ -95,7 +115,37 @@ int main(int argc, char **argv) {
     };
   };
 
-  printf("processing table dump from %s\n", argv[1]);
-  printf("processing updates from    %s\n", argv[2]);
+  if (unquiet) {
+    printf("processing table dump from %s\n", argv[1]);
+    printf("processing updates from    %s\n", argv[2]);
+  };
   process(argv[1], argv[2]);
+};
+
+void process_option(char *opt) {
+  switch (opt[0]) {
+  case 'q':
+  case 'Q':
+    unquiet = 0;
+    break;
+  case 'v':
+  case 'V':
+    verbose = 1;
+    break;
+  default:
+    printf("unknwn option: %s\n", opt);
+    exit(0);
+  };
+};
+
+int main(int argc, char **argv) {
+  int i, _argc;
+  assert(2 < argc);
+  _argc = 1;
+  for (i = 1; i < argc; i++)
+    if ('-' != *argv[i])
+      argv[_argc++] = argv[i];
+    else
+      process_option(argv[i] + 1);
+  main2(_argc, argv);
 };

@@ -15,6 +15,9 @@
 
 #define INFINITY 0x7ffff000
 
+int verbose = 0;
+int unquiet = 1;
+
 void free_update_list(struct update_list_item *head) {
   struct update_list_item *current, *next;
   current = head;
@@ -85,7 +88,8 @@ struct chunk map_mrt_file(char *fname) {
   fstat(fd, &sb);
   buf = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
   close(fd);
-  printf("opened %s file size %ld\n", fname, sb.st_size);
+  if (unquiet)
+    printf("opened %s file size %ld\n", fname, sb.st_size);
   return (struct chunk){buf, sb.st_size};
 };
 

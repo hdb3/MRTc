@@ -259,7 +259,7 @@ struct mrt *mrt_updates_parse(struct chunk buf) {
     case BGP4MP_MESSAGE:
     case BGP4MP_MESSAGE_LOCAL:
       is_AS4 = 0;
-      if (0 == mrt->bgp4mp.as2_discards)
+      if (unquiet && 0 == mrt->bgp4mp.as2_discards)
         printf("mrt_parse: unsupported AS2 msg_subtype %d at msg %d\n", msg_subtype, mrt->mrt_rec_count);
       mrt->bgp4mp.as2_discards++;
       break;

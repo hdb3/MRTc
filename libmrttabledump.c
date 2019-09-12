@@ -311,9 +311,13 @@ struct mrt *get_mrt_tabledump(struct chunk buf) {
 
   // parse the initial MRT record which must be type TABLE_DUMP_V2 subtype PEER_INDEX_TABLE
   parse_mrt_TABLE_DUMP_V2(mrt, buf);
-  printf("get_mrt_tabledump: found %d peers\n", mrt->peer_count);
   mrt_list_walker(mrt, buf);
-  printf("get_mrt_tabledump: %d IPV4_UNICAST entries\n", mrt->tabledump.count_RIB_IPV4_UNICAST);
-  printf("get_mrt_tabledump: highest active peer index: %d\n", mrt->tabledump.max_peer_index);
+  if (verbose) {
+    printf("get_mrt_tabledump: found %d peers\n", mrt->peer_count);
+    printf("get_mrt_tabledump: %d IPV4_UNICAST entries\n", mrt->tabledump.count_RIB_IPV4_UNICAST);
+    printf("get_mrt_tabledump: highest active peer index: %d\n", mrt->tabledump.max_peer_index);
+  } else if (unquiet) {
+    printf("get_mrt_tabledump: %d/%d active/total peers\n", mrt->tabledump.max_peer_index + 1, mrt->peer_count);
+  };
   return mrt;
 };
