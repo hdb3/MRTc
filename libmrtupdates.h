@@ -1,5 +1,6 @@
 // struct chunk update_block_builder(struct update_list_item *update_list);
-void show_bgp4mp_peer_address(struct mrt_peer_record *peer);
+char *show_bgp4mp_peer_address(struct mrt_peer_record *peer);
+void print_bgp4mp_peer_address(struct mrt_peer_record *peer);
 void report_bgp4mp_bgp_stats(struct bgp4mp_bgp_stats *sp);
 // struct chunk get_one_bgp4mp(struct mrt *mrt, int peer, int msg_number);
 // struct chunk *get_blocks_bgp4mp(struct mrt *mrt, int nblocks);

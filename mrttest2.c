@@ -48,15 +48,10 @@ void process(char *fn_tabledump, char *fn_update) {
   // Combined processing stage
   printf("\nCombined processing stage\n\n");
 
-  //mrt_summary(tabledump);
-  //mrt_summary(updatedump);
   int match_count = match_bgp4mp_tabledump(updatedump, tabledump);
   printf("matched %d update peer records in table dump\n", match_count);
 
   assert(match_count == match_tabledump_bgp4mp(tabledump, updatedump));
-  // match_count = match_tabledump_bgp4mp(tabledump, updatedump);
-  // printf("matched %d tabledump peer records in updates\n", match_count);
-  //
   int tabledump_unlinked = trim_mrt_tabledump_unlinked(tabledump);
   printf("removed %d unlinked tabledump peers\n", tabledump_unlinked);
   int updatedump_unlinked = filter_updates_unlinked(updatedump);
@@ -67,8 +62,7 @@ void process(char *fn_tabledump, char *fn_update) {
   mrt_clear_links(updatedump, tabledump);
   assert(tabledump->peer_count == match_bgp4mp_tabledump(updatedump, tabledump));
   assert(tabledump->peer_count == match_tabledump_bgp4mp(tabledump, updatedump));
-  mrt_summary(tabledump);
-  mrt_summary(updatedump);
+  mrt_link_summary(updatedump);
 
   exit(0);
 

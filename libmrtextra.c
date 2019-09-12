@@ -178,3 +178,31 @@ void mrt_summary(struct mrt *mrt) {
     };
   };
 };
+
+void mrt_link_summary(struct mrt *mrt) {
+  int i;
+  printf("mrt_link_summary:                                                                                        RIB size  updates\n");
+  for (i = 0; i < mrt->peer_count; i++) {
+    struct mrt_peer_record *peer = &mrt->peer_table[i];
+    if (NULL != peer->link && peer == peer->link->link) {
+      struct mrt_peer_record *updatepeer, *tabledumppeer;
+      if (mrt->type == TYPE_TABLEDUMP) {
+        tabledumppeer = peer;
+        updatepeer = tabledumppeer->link;
+      } else {
+        updatepeer = peer;
+        tabledumppeer = updatepeer->link;
+      };
+      printf("mrt_link_summary: %s %-7d   %-9d\n", show_bgp4mp_peer_address(updatepeer), tabledumppeer->rib.count, updatepeer->bgp4mp.update_count);
+    } else {
+      if (NULL == peer->link)
+        printf("mrt_link_summary: %s unlinked\n", show_mrt_peer_record(peer));
+      else if (NULL == peer->link->link)
+        printf("mrt_link_summary: %s reverse unlinked (link: %s)\n", show_mrt_peer_record(peer), show_mrt_peer_record(peer->link));
+      else if (peer->link->link != peer)
+        printf("mrt_link_summary: %s ** assymetric link! ** (link: %s)\n", show_mrt_peer_record(peer), show_mrt_peer_record(peer->link));
+      else
+        printf("mrt_link_summary: True == False\n");
+    };
+  };
+};

@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <arpa/inet.h>
 #include <assert.h>
 #include <fcntl.h>
@@ -45,7 +46,10 @@ struct chunk get_blocks_bgp4mp_peer(struct mrt_peer_record *peer) {
   return (struct chunk){buffer, offset};
 };
 
-void show_bgp4mp_peer_address(struct mrt_peer_record *peer) {
+static char *_show_bgp4mp_peer_address = NULL;
+char *show_bgp4mp_peer_address(struct mrt_peer_record *peer) {
+  if (NULL != _show_bgp4mp_peer_address)
+    free(_show_bgp4mp_peer_address);
   char peer_ip_str[INET6_ADDRSTRLEN];
   char local_ip_str[INET6_ADDRSTRLEN];
 
@@ -56,7 +60,12 @@ void show_bgp4mp_peer_address(struct mrt_peer_record *peer) {
     inet_ntop(AF_INET, &peer->peer_ip, peer_ip_str, INET6_ADDRSTRLEN);
     inet_ntop(AF_INET, &peer->local_ip, local_ip_str, INET6_ADDRSTRLEN);
   };
-  printf("[as %-6d ip %-24s (local: as %-6d ip %-24s)]", peer->peer_as, peer_ip_str, peer->local_as, local_ip_str);
+  assert(asprintf(&_show_bgp4mp_peer_address, "[as %-6d ip %-24s (local: as %-6d ip %-24s)]", peer->peer_as, peer_ip_str, peer->local_as, local_ip_str));
+  return _show_bgp4mp_peer_address;
+};
+
+void print_bgp4mp_peer_address(struct mrt_peer_record *peer) {
+  fputs(show_bgp4mp_peer_address(peer), stdout);
 };
 
 void report_bgp4mp_bgp_stats(struct bgp4mp_bgp_stats *sp) {
@@ -103,7 +112,7 @@ void report_mrt_bgp4mp_peers(struct mrt *mrt) {
   for (i = 0; i < mrt->peer_count; i++) {
     struct mrt_peer_record *peer = &mrt->peer_table[i];
     printf("report_mrt_bgp4mp: %-3d", i);
-    show_bgp4mp_peer_address(peer);
+    print_bgp4mp_peer_address(peer);
     printf(" %-8d  %-8d  %-8d  %-8d\n", peer->bgp4mp.rec_count, peer->bgp4mp.bgp_msg_count, peer->bgp4mp.update_count, peer->bgp4mp.bgp_stats.mpbgp_count);
   };
 };
