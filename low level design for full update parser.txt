@@ -1,0 +1,22 @@
+low level design for full update parser
+
+extends libmrtupdate.c/h
+function process_path_attribute gets a case statement over all message types
+stats struct is expanded or replaced with a RIB
+
+a new parsed update (route) struct is required
+route holds the known attribute types in named unique fields and uses bit flags to record the absence / presence of the attributes found
+for possibly multiple attributes like communities and also for the AS path list the field are varaiable length with counts.
+we will not handle AS2 or AS-SET (yet)
+nor MP-BGP NLRI, etc. (but still count them)
+unknown attributes can be put in a general store, or correctly managed as unknown attributes with respect to transitive and partial flags.
+Initial behaviour is ignore and discard.
+
+AS Path Handling
+AS4 Support / No AS Set
+Excluding AS-Set should have minimal functional impact.
+A halfway house is possible, which would parse any message but encode the content as if it wwre a simple sequence.
+The inintial approach is the simplest, and will parse only an AS-Path attribute conting just one AS4 AS-Sequence.
+The corresponding route struct has a variable length array and a path length field.  As the first variant length structure the offset is fixed.  Following structures may be located using the AS Path length value to calculate the offset (4 * ASPAth length).
+Format and parsing: a single AS Sequence has two byte header, the first byte is the type - for AS Sequence this is == 1.  The second is the number of (4byte) AS numbers.  This should correspond to the path attribute length field == 2 + 4 * byte[1].  An unexpected AS2 attribute would have length == 2 + 2 * byte[1].  A flexible parser might expand the 2 byte AS numbers to 4 byte ones.  But the serialisaer will not have the luxury of knowing which format to generate.
+An AS-Set partial implmentation would copy one or all of the AS Set elements as if they were AS- Sequqnces.
