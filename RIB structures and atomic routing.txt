@@ -1,0 +1,43 @@
+RIB entry memory management strategies
+most RIB entries are quite small, e.g. below 40 bytes
+the number required is <200,000 * # of peers, i.e. around 8MB per peers
+the simplest way to manage RIB memory is with malloc and a prefix index table, which would add to the total
+memory usage another 8 bytes per entry ~ 1MB per peer.
+Because of the redundancy in BGP message coding compared with the static structure, the eventual size of the entry can be calculated with resonable accuracy based on the size of the source update, and is always less than the source encoding size.
+So a malloc strategy is quite simple.
+Occasional larger entries result principally from exceptionally long as paths, usually due to prepending.  There is no hard limit, though only a handful exceed 32 ASes, which would represent 128 bytes additional memory per entry.  If a fixed allocation were used the minimum safe limit would probably be about 256 bytes - requiring 50MB per peer, around 5x more than an optimal scheme.
+a simple scheme which would be quite effective is two tables, one for small entries and one for large.  The tables themselves could be dynamic, and the resulting pointers could be 4 bytes rather than 8 (or even 3).
+To eveluate whether this complexity is usefull the simple alternates of fixed 512 byte and malloced variable allcation should be benchmarked.
+
+Note: the related topic of prefix aggregation can be addressed at the same time: the lookup of a prefix list should allow a, possibly singleton, list of RIB indices to be returned.
+
+Atomic routing
+The benefit of atomic routing can be saving in memory usage or saving in processing time, or both.
+Processing time saving arises when an action repeated for all prefixes is reduced to a single action.
+This would be the action of running the tie-break over all RIB entries for a prefix,
+and the dissemination action.  Since dissemination should aggregate, the saving is less simple to calculate,
+but still real.
+Wehetehr all output aggregation can be executed as part of agrregtate actions is open for analysis.
+The memory saving applies to all prefix indexed structures: i.e. all of the AdjRibIn/AdjRibOut/LocRIB.
+In the simple case of a consistently grouped prefix set, the saving is direct.
+
+Atomic Routing in practice
+Clients of the atomic rib are not aware of the internal structure or algorithm:
+they ask the RIB for a unique index for every prefix group received.
+Whether or not the group is a simple aggregate or not, the index is singlular and immutable,
+and the client need not enquire about its internal structure.
+For simple persistent aggregates that is the end of the story:
+all subsequent processing is unaffected by the composite nature of the address target.
+What happens when a prefix group is split on the arrival of a new update?
+The new update group receives its own unique index, and the groups are linked internally.
+The critical step is the tie-break: the selection process must deaggregate composites before processing them.
+There may be a shortcut process, in the case that the current preferred route is an identical aggregate to the new candidate.
+However, the outcome must mirror the outcome of the full deaggregated process.
+One way to achive this is to require that LocRIB holds only non-composite entries.
+This is a simple scheme.
+The process of reaggregation would depend on the outcome of the selection process.
+Reaggregation could be deferred until AdjRIBOut processing.  AdjRIBOut can also impact on aggregates itself, by applying prefix filters.
+Post output filtered prefixes may require new RIB indices.
+New prefix group indices would be required for both accepted and rejected prefixes, to ensure that withdraw processing works correctly in all cases.
+Arguably the output filetr indiced prefix groups could be kept out of LocRIB, however this is too complex!
+The essential requirement is a mechanism for splitting LocRIB when prefix splits arise.
