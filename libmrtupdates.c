@@ -167,8 +167,14 @@ static inline void process_path_attribute_route(uint8_t type_code, struct chunk 
     assert(0 == msg.length % 4);
     // printf("COMMUNITY: ");
     // print_chunk(msg);
-    assert(MAX_COMMUNITY_LENGTH >= route->communities_length);
-    memcpy(route->communities, msg.data, msg.length);
+    if (MAX_COMMUNITY_LENGTH < route->communities_length) {
+      printf("oversize COMMUNITY: (%d) ", route->communities_length);
+      print_chunk(msg);
+    } else {
+      memcpy(route->communities, msg.data, msg.length);
+    };
+    // assert(MAX_COMMUNITY_LENGTH >= route->communities_length);
+    // memcpy(route->communities, msg.data, msg.length);
     break;
 
   case EXTENDED_COMMUNITIES:
