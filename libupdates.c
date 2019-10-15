@@ -17,26 +17,8 @@
 #define MAX_COMMUNITY_LENGTH 10
 #define MAX_EXTENDED_COMMUNITY_LENGTH 10
 #define MAX_LARGE_COMMUNITY_LENGTH 10
-/*
-typedef large_community {
-  uint32_t[3];
-  struct route {
-    uint64_t attributes;
-    uint8_t origin;
-    uint8_t path_length;
-    uint32_t as_path[MAX_PATH_LENGTH];
-    uint32_t next_hop;
-    uint32_t med;
-    uint32_t local_pref;
-    uint8_t communities_length;
-    uint32_t communities[MAX_COMMUNITY_LENGTH];
-    uint8_t extended_community_length;
-    uint64_t extended_communities[MAX_EXTENDED_COMMUNITY_LENGTH];
-    uint8_t large_community_length;
-    uint32_t large_communities[MAX_LARGE_COMMUNITY_LENGTH];
-  };
-*/
-  static inline void process_path_attribute(uint8_t type_code, struct chunk msg, struct route * route) {
+
+  static inline void process_path_attribute_route(uint8_t type_code, struct chunk msg, struct route * route) {
 
     assert(type_code < 64);
     route->attributes |= (1ULL << (type_code));
@@ -89,7 +71,7 @@ typedef large_community {
       printf("unexpected attribute, type code =%d\n", type_code);
     }
   };
-
+/*
   static inline void process_path_attributes(struct chunk msg, struct route * route) {
     void *p = msg.data;
     void *limit = msg.data + msg.length;
@@ -101,7 +83,7 @@ typedef large_community {
       length = *(uint8_t *)p++;
       if (0x10 & flags)
         length = length << 8 | (*(uint8_t *)p++);
-      process_path_attribute(type_code, (struct chunk){p, length}, route);
+      process_path_attribute_route(type_code, (struct chunk){p, length}, route);
       p += length;
     };
     if (p != limit) {
@@ -109,3 +91,4 @@ typedef large_community {
     };
     assert(p == limit);
   };
+  */
