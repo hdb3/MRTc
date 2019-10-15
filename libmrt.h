@@ -27,9 +27,6 @@
 #define RIB_IPV6_MULTICAST 5
 #define RIB_GENERIC 6
 
-#define ORIGIN 1
-#define AS_PATH 2
-#define NEXT_HOP 3
 #define MULTI_EXIT_DISC 4
 #define LOCAL_PREF 5
 
@@ -155,3 +152,4 @@ extern int unquiet;
 #include "libmrttabledump.h"
 #include "libmrttabledumpextra.h"
 #include "libmrtupdates.h"
+#include "libupdates.h"

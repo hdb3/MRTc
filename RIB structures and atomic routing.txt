@@ -7,7 +7,7 @@ Because of the redundancy in BGP message coding compared with the static structu
 So a malloc strategy is quite simple.
 Occasional larger entries result principally from exceptionally long as paths, usually due to prepending.  There is no hard limit, though only a handful exceed 32 ASes, which would represent 128 bytes additional memory per entry.  If a fixed allocation were used the minimum safe limit would probably be about 256 bytes - requiring 50MB per peer, around 5x more than an optimal scheme.
 a simple scheme which would be quite effective is two tables, one for small entries and one for large.  The tables themselves could be dynamic, and the resulting pointers could be 4 bytes rather than 8 (or even 3).
-To eveluate whether this complexity is usefull the simple alternates of fixed 512 byte and malloced variable allcation should be benchmarked.
+To eveluate whether this complexity is usefull the simple alternates of fixed 512 byte and malloced variable allocation should be benchmarked.
 
 Note: the related topic of prefix aggregation can be addressed at the same time: the lookup of a prefix list should allow a, possibly singleton, list of RIB indices to be returned.
 
