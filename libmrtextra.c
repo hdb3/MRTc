@@ -22,12 +22,19 @@ void add_bgp4mp_bgp_stats(struct bgp4mp_bgp_stats *to, struct bgp4mp_bgp_stats *
   to->update_count += from->update_count;
   to->eor_count += from->eor_count;
   to->withdraw_count += from->withdraw_count;
-  to->mixed_update_count += from->mixed_update_count;
+  // to->mixed_update_count += from->mixed_update_count;
   to->mpbgp_count += from->mpbgp_count;
-  to->zero_nrli_count += from->zero_nrli_count;
+  // to->zero_nrli_count += from->zero_nrli_count;
 
   to->med_count += from->med_count;
   to->ibgp_count += from->ibgp_count;
+
+  to->max_update_length += from->max_update_length;
+  to->max_path_length += from->max_path_length;
+  to->max_raw_attributes_size += from->max_raw_attributes_size;
+  to->max_raw_community_size += from->max_raw_community_size;
+  to->max_raw_nlri_size += from->max_raw_nlri_size;
+  to->max_nlri_length += from->max_nlri_length;
 };
 
 static inline int compare_bgp4mp_peer(const void *a, const void *b) {

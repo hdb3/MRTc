@@ -77,11 +77,18 @@ void report_bgp4mp_bgp_stats(struct bgp4mp_bgp_stats *sp) {
   printf("report_bgp4mp_bgp_stats:   %-7d Plain Updates\n", sp->update_count);
   printf("report_bgp4mp_bgp_stats:   %-7d Withdraws\n", sp->withdraw_count);
   printf("report_bgp4mp_bgp_stats:   %-7d MP-BGP Updates\n", sp->mpbgp_count);
-  printf("report_bgp4mp_bgp_stats:   %-7d Mixed Updates\n", sp->mixed_update_count);
-  printf("report_bgp4mp_bgp_stats:   %-7d Zero NLRI Update\n", sp->zero_nrli_count);
+  //printf("report_bgp4mp_bgp_stats:   %-7d Mixed Updates\n", sp->mixed_update_count);
+  //printf("report_bgp4mp_bgp_stats:   %-7d Zero NLRI Update\n", sp->zero_nrli_count);
   printf("report_bgp4mp_bgp_stats:   %-7d End-of-RIB\n", sp->eor_count);
   printf("report_bgp4mp_bgp_stats:     %-7d IBGP count\n", sp->ibgp_count);
   printf("report_bgp4mp_bgp_stats:     %-7d MED count\n", sp->med_count);
+
+  printf("report_bgp4mp_bgp_stats:     %-7d max_update_length\n", sp->max_update_length);
+  printf("report_bgp4mp_bgp_stats:     %-7d max_path_length\n", sp->max_path_length);
+  printf("report_bgp4mp_bgp_stats:     %-7d max_raw_attributes_size\n", sp->max_raw_attributes_size);
+  printf("report_bgp4mp_bgp_stats:     %-7d max_raw_community_size\n", sp->max_raw_community_size);
+  printf("report_bgp4mp_bgp_stats:     %-7d max_raw_nlri_size\n", sp->max_raw_nlri_size);
+  printf("report_bgp4mp_bgp_stats:     %-7d max_nlri_length\n", sp->max_nlri_length);
 };
 
 void report_mrt_bgp4mp(struct mrt *mrt) {
@@ -196,16 +203,8 @@ static inline void process_path_attribute_route(uint8_t type_code, struct chunk 
     assert(p == limit);
   };
   */
-// can remove this and put in the post-route-parse processing later on
-static inline void process_path_attribute(uint8_t type_code, struct chunk msg, struct bgp4mp_bgp_stats *sp) {
-  if (MULTI_EXIT_DISC == type_code) {
-    sp->med_count++;
-  } else if (LOCAL_PREF == type_code) {
-    sp->ibgp_count++;
-  };
-};
 
-static inline void process_path_attributes(struct chunk msg, struct bgp4mp_bgp_stats *sp, struct route *route) {
+static inline void process_path_attributes(struct chunk msg, struct route *route) {
   void *p = msg.data;
   void *limit = msg.data + msg.length;
   uint8_t flags, type_code;
@@ -217,7 +216,7 @@ static inline void process_path_attributes(struct chunk msg, struct bgp4mp_bgp_s
     if (0x10 & flags)
       length = length << 8 | (*(uint8_t *)p++);
     process_path_attribute_route(type_code, (struct chunk){p, length}, route);
-    process_path_attribute(type_code, (struct chunk){p, length}, sp);
+    // process_path_attribute(type_code, (struct chunk){p, length}, sp);
     p += length;
   };
   if (p != limit) {
@@ -225,10 +224,29 @@ static inline void process_path_attributes(struct chunk msg, struct bgp4mp_bgp_s
   };
   assert(p == limit);
 };
+static inline void update_bgp4mp_bgp_stats(struct bgp4mp_bgp_stats *sp, struct route *route, struct chunk nlri, struct chunk withdrawn) {
+  sp->all_update_count++;
+  if (route->attributes & (1ULL << MULTI_EXIT_DISC))
+    sp->med_count++;
+  if (route->attributes & (1ULL << LOCAL_PREF))
+    sp->ibgp_count++;
+
+  if (0 > withdrawn.length)
+    sp->withdraw_count++;
+  else if ((0 == nlri.length) && (0 == route->attributes))
+    sp->eor_count++;
+  else if (0 < nlri.length)
+    sp->update_count++;
+  else {
+    assert((route->attributes & (1ULL << MP_REACH_NLRI)) || (route->attributes & (1ULL << MP_UNREACH_NLRI)));
+    sp->mpbgp_count++;
+  };
+};
 
 static int zero_nrli_flag = 1;
 static inline int process_bgp_message(struct chunk msg, struct bgp4mp_bgp_stats *sp) {
   struct route route;
+  memset(&route, 0, sizeof(struct route));
   assert(18 < msg.length);
   uint16_t length = getw16(msg.data + 16);
   uint8_t typecode = *(uint8_t *)(msg.data + 18);
@@ -236,53 +254,37 @@ static inline int process_bgp_message(struct chunk msg, struct bgp4mp_bgp_stats 
   sp->msg_count++;
   assert(length == msg.length);
   switch (typecode) {
+
   case 1:
     sp->open_count++;
     break;
+
   case 2: { // Update cases - EOR/Withdraw/Update
-    sp->all_update_count++;
+
     uint16_t withdraw_length = getw16(msg.data + 19);
     uint16_t pathattributes_length = getw16(msg.data + 21 + withdraw_length);
     uint16_t nlri_length = length - withdraw_length - pathattributes_length - 23;
     assert(length >= 23 + withdraw_length + pathattributes_length); // sanity check
+    struct chunk withdrawn = {msg.data + 21, withdraw_length};
+    struct chunk path_attributes = {msg.data + 23 + withdraw_length, pathattributes_length};
+    struct chunk nlri = {msg.data + 23 + withdraw_length + pathattributes_length, nlri_length};
 
-    if (23 == length) // 0 == pathattributes_length == withdraw_length ~ empty Update aka End-of-RIB
-      sp->eor_count++;
-    else if (0 == pathattributes_length) {
-      assert(length == 23 + withdraw_length); // i.e. other than EOR the only legal Update with no path attributes is a plain withdraw
-      sp->withdraw_count++;                   // simple withdraw
-    } else {                                  // non-empty Path Attribute options now
-      process_path_attributes((struct chunk){msg.data + 23 + withdraw_length, pathattributes_length}, sp, &route);
-      if (0 == withdraw_length) {
-        if (0 == nlri_length) // MP-BGP  -  NLRI only and always present if this is a plain IPv4 messsage (not MP-BGP which has no NLRI but instead attribute MP_REACH_NLRI)
-          sp->mpbgp_count++;
-        else { // simple update
-          sp->update_count++;
-          is_update = 1;
-        }
-      } else { // withdraw_length non-zero
-        if (0 == nlri_length && zero_nrli_flag) {
-          printf("Update with path attributes and no NLRI at msg# %d\n", sp->msg_count);
-          // write_chunk("debug.bin",msg);
-          // print_chunk(msg);
-          // print_chunk((struct chunk){msg.data + 23 + withdraw_length, pathattributes_length});
-          zero_nrli_flag = 0;
-          sp->zero_nrli_count++;
-        };
-        // assert(0 < nlri_length); // shouldn't have path attributes and withdraw with no NLRI!
-        // but they are out there!!!
-        // combined withdraw and update
-        sp->mixed_update_count++;
-      };
+    if (0 < pathattributes_length) {
+      process_path_attributes(path_attributes, &route);
+      update_bgp4mp_bgp_stats(sp, &route, nlri, withdrawn);
+      is_update = 1;
     };
     break;
   };
+
   case 3:
     sp->notification_count++;
     break;
+
   case 4:
     sp->keepalive_count++;
     break;
+
   default:
     printf("invalid typecode %d\n", typecode);
     exit(1);

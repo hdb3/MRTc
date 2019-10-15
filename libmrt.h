@@ -65,12 +65,18 @@ struct bgp4mp_bgp_stats {
   int update_count;
   int eor_count;
   int withdraw_count;
-  int mixed_update_count;
+  //int mixed_update_count;
   int mpbgp_count;
-  int zero_nrli_count;
+  //int zero_nrli_count;
   // path attribute level
   int med_count;
   int ibgp_count;
+  int max_update_length;
+  int max_path_length;
+  int max_raw_attributes_size;
+  int max_raw_community_size;
+  int max_raw_nlri_size;
+  int max_nlri_length;
 };
 
 struct bgp4mp_peer {
@@ -153,3 +159,4 @@ extern int unquiet;
 #include "libmrttabledumpextra.h"
 #include "libmrtupdates.h"
 #include "libupdates.h"
+#include "nlri.h"
