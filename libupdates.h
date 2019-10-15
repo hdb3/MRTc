@@ -15,9 +15,9 @@
 //
 // arbitrary constants for fixed size route structs
 #define MAX_PATH_LENGTH 50
-#define MAX_COMMUNITY_LENGTH 10
-#define MAX_EXTENDED_COMMUNITY_LENGTH 10
-#define MAX_LARGE_COMMUNITY_LENGTH 10
+#define MAX_COMMUNITY_LENGTH 50
+#define MAX_EXTENDED_COMMUNITY_LENGTH 50
+#define MAX_LARGE_COMMUNITY_LENGTH 50
 
 // typedef struct large_community { uint32_t word[3] } large_community;
 struct large_community { uint32_t word[3]; };
@@ -46,6 +46,7 @@ struct route {
 #define NEXT_HOP 3
 #define MULTI_EXIT_DISC 4
 #define LOCAL_PREF 5
+#define ATOMIC_AGGREGATE 6
 #define AGGREGATOR 7
 #define COMMUNITY 8
 #define ORIGINATOR_ID 9
@@ -55,5 +56,6 @@ struct route {
 #define EXTENDED_COMMUNITIES 16
 #define AS4_PATH 17
 #define AS4_AGGREGATOR 18
+#define	AS_PATHLIMIT 21
 #define LARGE_COMMUNITY 32
 #define BGPsec_Path 33

@@ -124,11 +124,6 @@ void report_mrt_bgp4mp_peers(struct mrt *mrt) {
   };
 };
 
-#define MAX_PATH_LENGTH 50
-#define MAX_COMMUNITY_LENGTH 10
-#define MAX_EXTENDED_COMMUNITY_LENGTH 10
-#define MAX_LARGE_COMMUNITY_LENGTH 10
-
 static inline void process_path_attribute_route(uint8_t type_code, struct chunk msg, struct route *route) {
 
   assert(type_code < 64);
@@ -142,9 +137,13 @@ static inline void process_path_attribute_route(uint8_t type_code, struct chunk 
   case AS_PATH:
     // assume that the as_PATH is a singleton AS_SEQUENCE
     route->path_length = *(uint8_t *)(msg.data + 1);
+    if (msg.length > 2 + 4 * route->path_length) {
+      printf("complex AS_PATH: (%ld,%d) ", msg.length, route->path_length);
+      print_chunk(msg);
+    };
     assert(MAX_PATH_LENGTH >= route->path_length);
-    assert(1 == *(uint8_t *)msg.data);                // AS_SEQUENCE segment type == 1
-    assert(msg.length == 2 + 4 * route->path_length); // the test that the segment exactly fills the attribute
+    assert(2 == *(uint8_t *)msg.data);                // AS_SEQUENCE segment type == 1
+    assert(msg.length >= 2 + 4 * route->path_length); // the test that the segment exactly fills the attribute
     memcpy(route->as_path, msg.data + 2, msg.length - 2);
     break;
 
@@ -152,32 +151,60 @@ static inline void process_path_attribute_route(uint8_t type_code, struct chunk 
     assert(4 == msg.length);
     route->next_hop = *(uint32_t *)msg.data;
     break;
+
   case MULTI_EXIT_DISC:
     assert(4 == msg.length);
     route->med = *(uint32_t *)msg.data;
     break;
+
   case LOCAL_PREF:
     assert(4 == msg.length);
     route->local_pref = *(uint32_t *)msg.data;
     break;
+
   case COMMUNITY:
     route->communities_length = msg.length >> 2; // standard community is 4 bytes
-    assert(0 == route->communities_length % 4);
+    assert(0 == msg.length % 4);
+    // printf("COMMUNITY: ");
+    // print_chunk(msg);
     assert(MAX_COMMUNITY_LENGTH >= route->communities_length);
     memcpy(route->communities, msg.data, msg.length);
     break;
+
   case EXTENDED_COMMUNITIES:
     route->extended_communities_length = msg.length >> 3; // extended community is 8 bytes
-    assert(0 == route->extended_communities_length % 8);
+    assert(0 == msg.length % 8);
     assert(MAX_EXTENDED_COMMUNITY_LENGTH >= route->extended_communities_length);
     memcpy(route->extended_communities, msg.data, msg.length);
     break;
+
   case LARGE_COMMUNITY:
     route->large_communities_length = msg.length / 12; // standard community is 4 bytes
-    assert(0 == route->large_communities_length % 12);
+    assert(0 == msg.length % 12);
     assert(MAX_LARGE_COMMUNITY_LENGTH >= route->large_communities_length);
     memcpy(route->large_communities, msg.data, msg.length);
     break;
+
+  case ATOMIC_AGGREGATE:
+    assert(0 == msg.length);
+    break;
+
+  case AGGREGATOR:
+    // printf("AGGREGATOR: ");
+    // print_chunk(msg);
+    assert(8 == msg.length); // this the AS4 case - otherwise would be 6 not 8
+    break;
+
+  case MP_REACH_NLRI:
+    break;
+
+  case MP_UNREACH_NLRI:
+    break;
+
+  case AS_PATHLIMIT:
+    assert(5 == msg.length);
+    break;
+
   default:
     printf("unexpected attribute, type code =%d\n", type_code);
   }
