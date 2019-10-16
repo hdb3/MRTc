@@ -128,8 +128,14 @@ void report_mrt_bgp4mp_peers(struct mrt *mrt) {
 
 static inline void process_path_attribute_route(uint8_t type_code, struct chunk msg, struct route *route) {
 
-  assert(type_code < 64);
-  route->attributes |= (1ULL << (type_code));
+  if (type_code < 64)
+    route->attributes |= (1ULL << (type_code));
+  else if (ATTR_SET == type_code)
+    route->attributes |= (1ULL << (_ATTR_SET));
+  else {
+    printf("unexpected type code %d\n", type_code);
+    return;
+  };
   switch (type_code) {
 
   case ORIGIN:
@@ -217,6 +223,9 @@ static inline void process_path_attribute_route(uint8_t type_code, struct chunk 
   case CONNECTOR:
     // printf("CONNECTOR %ld\n", msg.length);
     // assert(6 == msg.length);
+    break;
+  
+  case ATTR_SET:
     break;
 
   default:

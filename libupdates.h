@@ -48,3 +48,5 @@ struct route {
 #define	AS_PATHLIMIT 21
 #define LARGE_COMMUNITY 32
 #define BGPsec_Path 33
+#define ATTR_SET 128
+#define _ATTR_SET 63 // kludge to allow use of 64-bit word for a set representation
