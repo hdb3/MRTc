@@ -1,10 +1,10 @@
 #define _GNU_SOURCE
 
 // arbitrary constants for fixed size route structs
-#define MAX_PATH_LENGTH 100
-#define MAX_COMMUNITY_LENGTH 250
-#define MAX_EXTENDED_COMMUNITY_LENGTH 250
-#define MAX_LARGE_COMMUNITY_LENGTH 250
+#define MAX_PATH_LENGTH 255
+#define MAX_COMMUNITY_LENGTH 255
+#define MAX_EXTENDED_COMMUNITY_LENGTH 255
+#define MAX_LARGE_COMMUNITY_LENGTH 255
 
 // typedef struct large_community { uint32_t word[3] } large_community;
 struct large_community { uint32_t word[3]; };

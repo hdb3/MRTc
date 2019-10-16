@@ -84,6 +84,7 @@ void report_bgp4mp_bgp_stats(struct bgp4mp_bgp_stats *sp) {
   printf("report_bgp4mp_bgp_stats:     %-7d IBGP count\n", sp->ibgp_count);
   printf("report_bgp4mp_bgp_stats:     %-7d MED count\n", sp->med_count);
   printf("report_bgp4mp_bgp_stats:     %-7d complex_path count\n", sp->complex_path_count);
+  printf("report_bgp4mp_bgp_stats:     %-7d attr_set count\n", sp->attr_set_count);
 
   printf("report_bgp4mp_bgp_stats:     %-7d max_update length\n", sp->max_update_length);
   printf("report_bgp4mp_bgp_stats:     %-7d max_path length\n", sp->max_path_length);
@@ -267,6 +268,8 @@ static inline void update_bgp4mp_bgp_stats(struct bgp4mp_bgp_stats *sp, struct r
       sp->med_count++;
     if (route->attributes & (1ULL << LOCAL_PREF))
       sp->ibgp_count++;
+    if (route->attributes & (1ULL << _ATTR_SET))
+      sp->attr_set_count++;
     if (route->complex_path)
       sp->complex_path_count++;
     int update_length = nlri.length + withdrawn.length + attributes.length;

@@ -24,6 +24,7 @@ void add_bgp4mp_bgp_stats(struct bgp4mp_bgp_stats *to, struct bgp4mp_bgp_stats *
   to->withdraw_count += from->withdraw_count;
   to->mpbgp_count += from->mpbgp_count;
 
+  to->attr_set_count += from->attr_set_count;
   to->med_count += from->med_count;
   to->ibgp_count += from->ibgp_count;
   to->complex_path_count += from->complex_path_count;
