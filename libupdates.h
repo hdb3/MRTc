@@ -1,7 +1,7 @@
 #define _GNU_SOURCE
 
 // arbitrary constants for fixed size route structs
-#define MAX_PATH_LENGTH 50
+#define MAX_PATH_LENGTH 100
 #define MAX_COMMUNITY_LENGTH 250
 #define MAX_EXTENDED_COMMUNITY_LENGTH 250
 #define MAX_LARGE_COMMUNITY_LENGTH 250
@@ -12,6 +12,7 @@ struct route {
   uint64_t attributes;
   uint8_t complex_path;
   uint8_t origin;
+  uint8_t exception;
   uint8_t path_length;
   uint32_t as_path[MAX_PATH_LENGTH];
   uint32_t next_hop;

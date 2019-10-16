@@ -224,7 +224,7 @@ static inline void process_path_attribute_route(uint8_t type_code, struct chunk 
     // printf("CONNECTOR %ld\n", msg.length);
     // assert(6 == msg.length);
     break;
-  
+
   case ATTR_SET:
     break;
 
@@ -279,10 +279,10 @@ static inline void update_bgp4mp_bgp_stats(struct bgp4mp_bgp_stats *sp, struct r
     UPDATEMAX(sp->max_raw_community_size, route->communities_length * 4);
     UPDATEMAX(sp->max_raw_attributes_size, attributes.length);
     UPDATEMAX(sp->max_path_length, route->path_length);
-  } else {
-    assert((route->attributes & (1ULL << MP_REACH_NLRI)) || (route->attributes & (1ULL << MP_UNREACH_NLRI)));
+  } else if ((route->attributes & (1ULL << MP_REACH_NLRI)) || (route->attributes & (1ULL << MP_UNREACH_NLRI)))
     sp->mpbgp_count++;
-  };
+  else
+    route->exception = 1;
 };
 
 static int zero_nrli_flag = 1;
@@ -314,6 +314,10 @@ static inline int process_bgp_message(struct chunk msg, struct bgp4mp_bgp_stats 
     if (0 < pathattributes_length) {
       process_path_attributes(path_attributes, &route);
       update_bgp4mp_bgp_stats(sp, &route, path_attributes, nlri, withdrawn);
+      if (route.exception) {
+        printf("exception: ");
+        print_chunk(msg);
+      }
       is_update = 1;
     };
     break;
