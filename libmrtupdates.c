@@ -305,7 +305,7 @@ static inline int process_bgp_message(struct chunk msg, struct bgp4mp_bgp_stats 
     break;
 
   case 2: { // Update cases - EOR/Withdraw/Update
-
+#ifndef NOUPDATE
     uint16_t withdraw_length = getw16(msg.data + 19);
     uint16_t pathattributes_length = getw16(msg.data + 21 + withdraw_length);
     uint16_t nlri_length = length - withdraw_length - pathattributes_length - 23;
@@ -315,14 +315,19 @@ static inline int process_bgp_message(struct chunk msg, struct bgp4mp_bgp_stats 
     struct chunk nlri = {msg.data + 23 + withdraw_length + pathattributes_length, nlri_length};
 
     if (0 < pathattributes_length) {
+#ifndef NOPPA
       process_path_attributes(path_attributes, &route);
+#endif
+#ifndef NOSTATS
       update_bgp4mp_bgp_stats(sp, &route, path_attributes, nlri, withdrawn);
+#endif
       if (route.exception) {
         printf("exception: ");
         print_chunk(msg);
       }
       is_update = 1;
     };
+#endif
     break;
   };
 
