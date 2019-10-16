@@ -12,6 +12,7 @@
 #include <unistd.h>
 
 #include "libmrt.h"
+#include "nlri.h"
 
 struct chunk get_blocks_bgp4mp_peer(struct mrt_peer_record *peer) {
   long int length = 0;
@@ -82,13 +83,14 @@ void report_bgp4mp_bgp_stats(struct bgp4mp_bgp_stats *sp) {
   printf("report_bgp4mp_bgp_stats:   %-7d End-of-RIB\n", sp->eor_count);
   printf("report_bgp4mp_bgp_stats:     %-7d IBGP count\n", sp->ibgp_count);
   printf("report_bgp4mp_bgp_stats:     %-7d MED count\n", sp->med_count);
+  printf("report_bgp4mp_bgp_stats:     %-7d complex_path count\n", sp->complex_path_count);
 
-  printf("report_bgp4mp_bgp_stats:     %-7d max_update_length\n", sp->max_update_length);
-  printf("report_bgp4mp_bgp_stats:     %-7d max_path_length\n", sp->max_path_length);
-  printf("report_bgp4mp_bgp_stats:     %-7d max_raw_attributes_size\n", sp->max_raw_attributes_size);
-  printf("report_bgp4mp_bgp_stats:     %-7d max_raw_community_size\n", sp->max_raw_community_size);
-  printf("report_bgp4mp_bgp_stats:     %-7d max_raw_nlri_size\n", sp->max_raw_nlri_size);
-  printf("report_bgp4mp_bgp_stats:     %-7d max_nlri_length\n", sp->max_nlri_length);
+  printf("report_bgp4mp_bgp_stats:     %-7d max_update length\n", sp->max_update_length);
+  printf("report_bgp4mp_bgp_stats:     %-7d max_path length\n", sp->max_path_length);
+  printf("report_bgp4mp_bgp_stats:     %-7d max_raw_attributes size\n", sp->max_raw_attributes_size);
+  printf("report_bgp4mp_bgp_stats:     %-7d max_raw_community size\n", sp->max_raw_community_size);
+  printf("report_bgp4mp_bgp_stats:     %-7d max_raw_nlri size\n", sp->max_raw_nlri_size);
+  printf("report_bgp4mp_bgp_stats:     %-7d max_nlri length\n", sp->max_nlri_length);
 };
 
 void report_mrt_bgp4mp(struct mrt *mrt) {
@@ -138,8 +140,9 @@ static inline void process_path_attribute_route(uint8_t type_code, struct chunk 
     // assume that the as_PATH is a singleton AS_SEQUENCE
     route->path_length = *(uint8_t *)(msg.data + 1);
     if (msg.length > 2 + 4 * route->path_length) {
-      printf("complex AS_PATH: (%ld,%d) ", msg.length, route->path_length);
-      print_chunk(msg);
+      // printf("complex AS_PATH: (%ld,%d) ", msg.length, route->path_length);
+      // print_chunk(msg);
+      route->complex_path = 1;
     };
     assert(MAX_PATH_LENGTH >= route->path_length);
     assert(2 == *(uint8_t *)msg.data);                // AS_SEQUENCE segment type == 1
@@ -211,31 +214,15 @@ static inline void process_path_attribute_route(uint8_t type_code, struct chunk 
     assert(5 == msg.length);
     break;
 
+  case CONNECTOR:
+    // printf("CONNECTOR %ld\n", msg.length);
+    // assert(6 == msg.length);
+    break;
+
   default:
     printf("unexpected attribute, type code =%d\n", type_code);
   }
 };
-/*
-  static inline void process_path_attributes(struct chunk msg, struct route * route) {
-    void *p = msg.data;
-    void *limit = msg.data + msg.length;
-    uint8_t flags, type_code;
-    uint16_t length;
-    while (p < limit) {
-      flags = *(uint8_t *)p++;
-      type_code = *(uint8_t *)p++;
-      length = *(uint8_t *)p++;
-      if (0x10 & flags)
-        length = length << 8 | (*(uint8_t *)p++);
-      process_path_attribute_route(type_code, (struct chunk){p, length}, route);
-      p += length;
-    };
-    if (p != limit) {
-      printf("process_path_attributes exception %p %p %p %ld %ld\n", msg.data, limit, p, limit - p, msg.length);
-    };
-    assert(p == limit);
-  };
-  */
 
 static inline void process_path_attributes(struct chunk msg, struct route *route) {
   void *p = msg.data;
@@ -257,20 +244,33 @@ static inline void process_path_attributes(struct chunk msg, struct route *route
   };
   assert(p == limit);
 };
-static inline void update_bgp4mp_bgp_stats(struct bgp4mp_bgp_stats *sp, struct route *route, struct chunk nlri, struct chunk withdrawn) {
+static inline void update_bgp4mp_bgp_stats(struct bgp4mp_bgp_stats *sp, struct route *route, struct chunk attributes, struct chunk nlri, struct chunk withdrawn) {
   sp->all_update_count++;
-  if (route->attributes & (1ULL << MULTI_EXIT_DISC))
-    sp->med_count++;
-  if (route->attributes & (1ULL << LOCAL_PREF))
-    sp->ibgp_count++;
 
   if (0 > withdrawn.length)
     sp->withdraw_count++;
   else if ((0 == nlri.length) && (0 == route->attributes))
     sp->eor_count++;
-  else if (0 < nlri.length)
+  else if (0 < nlri.length) {
+    // this is the IPv4 only Update analysis
     sp->update_count++;
-  else {
+    if (route->attributes & (1ULL << MULTI_EXIT_DISC))
+      sp->med_count++;
+    if (route->attributes & (1ULL << LOCAL_PREF))
+      sp->ibgp_count++;
+    if (route->complex_path)
+      sp->complex_path_count++;
+    int update_length = nlri.length + withdrawn.length + attributes.length;
+    int nlri_length = nlri_count(nlri);
+#define UPDATEMAX(x, y) x = ((y) < (x) ? (x) : (y))
+    UPDATEMAX(sp->max_update_length, update_length);
+    UPDATEMAX(sp->max_raw_attributes_size, attributes.length);
+    UPDATEMAX(sp->max_raw_nlri_size, nlri.length);
+    UPDATEMAX(sp->max_nlri_length, nlri_length);
+    UPDATEMAX(sp->max_raw_community_size, route->communities_length * 4);
+    UPDATEMAX(sp->max_raw_attributes_size, attributes.length);
+    UPDATEMAX(sp->max_path_length, route->path_length);
+  } else {
     assert((route->attributes & (1ULL << MP_REACH_NLRI)) || (route->attributes & (1ULL << MP_UNREACH_NLRI)));
     sp->mpbgp_count++;
   };
@@ -304,7 +304,7 @@ static inline int process_bgp_message(struct chunk msg, struct bgp4mp_bgp_stats 
 
     if (0 < pathattributes_length) {
       process_path_attributes(path_attributes, &route);
-      update_bgp4mp_bgp_stats(sp, &route, nlri, withdrawn);
+      update_bgp4mp_bgp_stats(sp, &route, path_attributes, nlri, withdrawn);
       is_update = 1;
     };
     break;

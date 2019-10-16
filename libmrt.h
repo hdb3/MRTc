@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#define MAX(x, y) ((y) < (x) ? (x) : (y))
 #define MIN_MRT_LENGTH 12
 #define MIN_MRT_LENGTH_ET 16
 #define BGP4MP_IPV4_PEER_HEADER_LENGTH 20
@@ -65,7 +66,7 @@ struct bgp4mp_bgp_stats {
   int update_count;
   int eor_count;
   int withdraw_count;
-  //int mixed_update_count;
+  int complex_path_count;
   int mpbgp_count;
   //int zero_nrli_count;
   // path attribute level

@@ -20,7 +20,7 @@ int main(int argc, char **argv) {
   // update_list = filter_msgs(update_list, &bgp_stats);
   //printf("got %d messages after filtering\n", count_update_list(update_list));
   report_mrt_bgp4mp(updatedump);
-  report_bgp4mp_bgp_stats(&bgp_stats);
+  // report_bgp4mp_bgp_stats(&bgp_stats);
   /*
   // code excesised here is superseeded for all useful purposes
   // will rewrite unit test only if needed

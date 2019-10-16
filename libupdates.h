@@ -1,28 +1,16 @@
 #define _GNU_SOURCE
-// #include <arpa/inet.h>
-// #include <assert.h>
-// #include <fcntl.h>
-// #include <stdint.h>
-// #include <stdio.h>
-// #include <stdlib.h>
-// #include <string.h>
-// #include <sys/mman.h>
-// #include <sys/stat.h>
-// #include <sys/types.h>
-// #include <unistd.h>
 
-// #include "libmrt.h"
-//
 // arbitrary constants for fixed size route structs
 #define MAX_PATH_LENGTH 50
-#define MAX_COMMUNITY_LENGTH 100
-#define MAX_EXTENDED_COMMUNITY_LENGTH 100
-#define MAX_LARGE_COMMUNITY_LENGTH 100
+#define MAX_COMMUNITY_LENGTH 250
+#define MAX_EXTENDED_COMMUNITY_LENGTH 250
+#define MAX_LARGE_COMMUNITY_LENGTH 250
 
 // typedef struct large_community { uint32_t word[3] } large_community;
 struct large_community { uint32_t word[3]; };
 struct route {
   uint64_t attributes;
+  uint8_t complex_path;
   uint8_t origin;
   uint8_t path_length;
   uint32_t as_path[MAX_PATH_LENGTH];
@@ -56,6 +44,7 @@ struct route {
 #define EXTENDED_COMMUNITIES 16
 #define AS4_PATH 17
 #define AS4_AGGREGATOR 18
+#define	CONNECTOR 20
 #define	AS_PATHLIMIT 21
 #define LARGE_COMMUNITY 32
 #define BGPsec_Path 33
