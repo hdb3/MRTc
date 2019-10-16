@@ -27,6 +27,7 @@ int main(int argc, char **argv) {
   gettime(&tend);
   tdelta = timespec_sub(tend, tstart);
   mrt_summary(updatedump);
+  report_mrt_bgp4mp(updatedump);
   printf("first parse complete in %ld\n", timespec_to_ms(tdelta));
   for (n = 0; n < LIMIT; n++) {
     gettime(&tstart);
@@ -40,7 +41,7 @@ int main(int argc, char **argv) {
   // printf("got %d messages from %s\n", count_update_list(update_list), argv[1]);
   // update_list = filter_msgs(update_list, &bgp_stats);
   //printf("got %d messages after filtering\n", count_update_list(update_list));
-  report_mrt_bgp4mp(updatedump);
+
   printf("average parse time %d\n", acctime / LIMIT);
   // report_bgp4mp_bgp_stats(&bgp_stats);
   /*

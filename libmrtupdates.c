@@ -456,7 +456,7 @@ struct mrt *mrt_updates_parse(struct chunk buf) {
         mrt->bgp4mp.mrt_bgp_msg_count++;
 
         int bgp_msg_status = process_bgp_message(msg_chunk, &pp->bgp4mp.bgp_stats);
-        if (bgp_msg_status) { // we only want update messages in the list, so skip if not Update
+        if (bgp_msg_status && BUILD_UPDATE_LIST) { // we only want update messages in the list, so skip if not Update
           struct update_list_item *itemp = calloc(1, sizeof(struct update_list_item));
           itemp->msg = msg_chunk;
           if (NULL == pp->bgp4mp.update_list_head)
