@@ -29,6 +29,7 @@ int main(int argc, char **argv) {
   mrt_summary(updatedump);
   report_mrt_bgp4mp(updatedump);
   printf("first parse complete in %ld\n", timespec_to_ms(tdelta));
+#ifndef CDFFILE
   for (n = 0; n < LIMIT; n++) {
     gettime(&tstart);
     updatedump = mrt_updates_parse(buf);
@@ -37,6 +38,7 @@ int main(int argc, char **argv) {
     acctime += timespec_to_ms(tdelta);
     printf("parse %5d complete in %ld\n", n, timespec_to_ms(tdelta));
   };
+#endif
   // update_list = updatedump->bgp4mp.update_list_head;
   // printf("got %d messages from %s\n", count_update_list(update_list), argv[1]);
   // update_list = filter_msgs(update_list, &bgp_stats);

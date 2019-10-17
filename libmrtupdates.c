@@ -14,6 +14,8 @@
 #include "libmrt.h"
 #include "nlri.h"
 
+static FILE *cdffile;
+
 struct chunk get_blocks_bgp4mp_peer(struct mrt_peer_record *peer) {
   long int length = 0;
   struct update_list_item *update_list = peer->bgp4mp.update_list_head;
@@ -254,6 +256,9 @@ static inline void process_path_attributes(struct chunk msg, struct route *route
   };
   assert(p == limit);
 };
+static inline void cdf(int val) {
+  fprintf(cdffile, "%d ", val);
+}
 static inline void update_bgp4mp_bgp_stats(struct bgp4mp_bgp_stats *sp, struct route *route, struct chunk attributes, struct chunk nlri, struct chunk withdrawn) {
   sp->all_update_count++;
 
@@ -274,7 +279,13 @@ static inline void update_bgp4mp_bgp_stats(struct bgp4mp_bgp_stats *sp, struct r
       sp->complex_path_count++;
     int update_length = nlri.length + withdrawn.length + attributes.length;
     int nlri_length = nlri_count(nlri);
+#ifdef CDFFILE
+#define UPDATEMAX(x, y)        \
+  x = ((y) < (x) ? (x) : (y)); \
+  cdf(y)
+#else
 #define UPDATEMAX(x, y) x = ((y) < (x) ? (x) : (y))
+#endif
     UPDATEMAX(sp->max_update_length, update_length);
     UPDATEMAX(sp->max_raw_attributes_size, attributes.length);
     UPDATEMAX(sp->max_raw_nlri_size, nlri.length);
@@ -282,6 +293,9 @@ static inline void update_bgp4mp_bgp_stats(struct bgp4mp_bgp_stats *sp, struct r
     UPDATEMAX(sp->max_raw_community_size, route->communities_length * 4);
     UPDATEMAX(sp->max_raw_attributes_size, attributes.length);
     UPDATEMAX(sp->max_path_length, route->path_length);
+#ifdef CDFFILE
+    fprintf(cdffile, "\n");
+#endif
   } else if ((route->attributes & (1ULL << MP_REACH_NLRI)) || (route->attributes & (1ULL << MP_UNREACH_NLRI)))
     sp->mpbgp_count++;
   else
@@ -371,7 +385,9 @@ struct mrt *mrt_updates_parse(struct chunk buf) {
   int is_AS4 = 0;
   int64_t bytes_left = buf.length;
   void *ptr = buf.data;
-
+#ifdef CDFFILE
+  cdffile = fopen("cdf.txt", "w");
+#endif
   mrt = calloc(1, sizeof(*mrt));
   mrt->type = TYPE_BGP4MP;
   while (bytes_left >= MIN_MRT_LENGTH) {
