@@ -14,7 +14,7 @@ main = do
       lm = Map.toAscList m
       alm = accumulate lm
       samples = snd $ last alm
-      ialm = map (\(k,c) -> (k,samples-c)) alm
+      ialm = map (\(k,c) -> (k,(samples-c)/samples)) alm
       put (k,v) = putStrLn $ show k ++ " " ++ show v
   mapM_ put ialm
 
