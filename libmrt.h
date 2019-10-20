@@ -82,6 +82,7 @@ struct bgp4mp_bgp_stats {
   int max_raw_community_size;
   int max_raw_nlri_size;
   int max_nlri_length;
+  int max_community_length;
 };
 
 struct bgp4mp_peer {

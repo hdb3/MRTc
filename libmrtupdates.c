@@ -92,6 +92,7 @@ void report_bgp4mp_bgp_stats(struct bgp4mp_bgp_stats *sp) {
   printf("report_bgp4mp_bgp_stats:     %-7d max_path length\n", sp->max_path_length);
   printf("report_bgp4mp_bgp_stats:     %-7d max_raw_attributes size\n", sp->max_raw_attributes_size);
   printf("report_bgp4mp_bgp_stats:     %-7d max_raw_community size\n", sp->max_raw_community_size);
+  printf("report_bgp4mp_bgp_stats:     %-7d max_community_length\n", sp->max_community_length);
   printf("report_bgp4mp_bgp_stats:     %-7d max_raw_nlri size\n", sp->max_raw_nlri_size);
   printf("report_bgp4mp_bgp_stats:     %-7d max_nlri length\n", sp->max_nlri_length);
 };
@@ -197,7 +198,7 @@ static inline void process_path_attribute_route(uint8_t type_code, struct chunk 
     break;
 
   case LARGE_COMMUNITY:
-    route->large_communities_length = msg.length / 12; // standard community is 4 bytes
+    route->large_communities_length = msg.length / 12; // large community is 12 bytes
     assert(0 == msg.length % 12);
     assert(MAX_LARGE_COMMUNITY_LENGTH >= route->large_communities_length);
     memcpy(route->large_communities, msg.data, msg.length);
@@ -279,6 +280,8 @@ static inline void update_bgp4mp_bgp_stats(struct bgp4mp_bgp_stats *sp, struct r
       sp->complex_path_count++;
     int update_length = nlri.length + withdrawn.length + attributes.length;
     int nlri_length = nlri_count(nlri);
+    int raw_communities_size = route->communities_length * 4 + route->extended_communities_length * 8 + route->large_communities_length * 12;
+    int all_communities_length = route->communities_length + route->extended_communities_length + route->large_communities_length;
 #ifdef CDFFILE
 #define UPDATEMAX(x, y)        \
   x = ((y) < (x) ? (x) : (y)); \
@@ -290,9 +293,11 @@ static inline void update_bgp4mp_bgp_stats(struct bgp4mp_bgp_stats *sp, struct r
     UPDATEMAX(sp->max_raw_attributes_size, attributes.length);
     UPDATEMAX(sp->max_raw_nlri_size, nlri.length);
     UPDATEMAX(sp->max_nlri_length, nlri_length);
-    UPDATEMAX(sp->max_raw_community_size, route->communities_length * 4);
-    UPDATEMAX(sp->max_raw_attributes_size, attributes.length);
     UPDATEMAX(sp->max_path_length, route->path_length);
+    UPDATEMAX(sp->max_raw_community_size, raw_communities_size);
+    UPDATEMAX(sp->max_raw_attributes_size, attributes.length);
+    UPDATEMAX(sp->max_community_length, all_communities_length);
+
 #ifdef CDFFILE
     fprintf(cdffile, "\n");
 #endif
@@ -387,7 +392,7 @@ struct mrt *mrt_updates_parse(struct chunk buf) {
   void *ptr = buf.data;
 #ifdef CDFFILE
   cdffile = fopen("cdf.txt", "w");
-  fprintf(cdffile, "max_update_length max_raw_attributes_size max_raw_nlri_size max_nlri_length max_raw_community_size max_raw_attributes_size max_path_length\n");
+  fprintf(cdffile, "raw_update raw_attributes raw_nlri nlri path raw_community raw_attributes communities\n");
 #endif
 
   mrt = calloc(1, sizeof(*mrt));
