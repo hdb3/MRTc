@@ -3,34 +3,52 @@ import qualified Data.ByteString.Lazy.Char8 as C
 import System.Environment(getArgs)
 import qualified Data.IntMap as Map
 import Data.List(foldl',intercalate)
+import System.IO(openFile,IOMode(WriteMode),hPutStrLn,hClose)
 
+{-
+
+  multi-column design
+  each line read returns a fixed length list of int:
+  we can combine each update with a list of maps
+-}
 main = do
   args <- getArgs
   let n = read (args !! 1) :: Int
   f <- C.readFile (head args)
-  let nx = map (index n) (C.lines f)
-  let f m v = Map.insertWith (+) v 1 m
-      m = foldl' f Map.empty nx
-      lm = Map.toAscList m
-      alm = accumulate lm
-      alm2 = accumulate2 lm
-      samples = snd $ last alm
-      ialm = map (\(k,c) -> (k,(samples-c)/samples)) alm
-      ialm2 :: [(Int,Int,Int,Double)]
-      ialm2 = map (\(k,c,z) -> (k,c,z,(samples-z)/samples)) alm2
-      put (k,v) = putStrLn $ show k ++ " " ++ show v
-      --put2 (k,v,agg,invagg) = putStrLn $ intercalate " " [show k, show v, show agg, show invagg]
-      put2 (k,v,agg,invagg) = putStrLn $ unwords [show k, show v, show agg, show invagg]
-  --mapM_ put ialm
-  mapM_ put2 ialm2
+  let (header:content) = C.lines f
+      columnNames = map C.unpack $ C.words header
+      readInt s = n where Just (n,_) = C.readInt s
+      fieldList = map (map readInt . C.words) content
+      emptyMaps = replicate (length columnNames) (Map.empty :: Map.IntMap Int)
+      updater :: Map.IntMap Int -> Int -> Map.IntMap Int
+      updater m n = Map.insertWith (+) n 1 m
+      updater2 :: [Map.IntMap Int] -> [Int] -> [Map.IntMap Int]
+      updater2 = zipWith updater
+      parsedContent = foldl updater2 emptyMaps fieldList
+      aggregates = zip columnNames (map Map.toAscList parsedContent)
+  putStrLn $ "read the following columns: " ++ unwords columnNames
+  mapM_ processColumn aggregates
 
-index n l = readInt $ (!!n) $ C.words l
-readInt s = n where Just (n,_) = C.readInt s
+processColumn (name,rows) = do 
+
+    let cumulativeRows :: [(Int,Int,Int)]
+        cumulativeRows = accumulate rows
+
+        (_,_,sampleCount) = last cumulativeRows
+        sampleCountFloat = fromIntegral sampleCount
+
+        normedSamples :: [(Int,Int,Int,Double)]
+        normedSamples = map (\(k,c,z) -> (k,c,z,(sampleCountFloat - fromIntegral z)/sampleCountFloat)) cumulativeRows
+    putStr $ "processColumn: " ++ name
+    putStr $ "read " ++ show (length rows) ++ " rows, "
+    putStrLn $ show sampleCount ++ " samples"
+    let fn = name++".txt"
+        printRow f (k,v,agg,invagg) = hPutStrLn f $ unwords [show k, show v, show agg, show invagg]
+    outfile <- openFile  fn WriteMode
+    mapM_ (printRow outfile) normedSamples
+    putStrLn $ "written to " ++ fn
+    hClose outfile
 
 accumulate = go 0 where
-    go z ( (k,c):kcx) | null kcx = [(k,z+c)]
-                      | otherwise = (k,z+c) : go (z+c) kcx
-
-accumulate2 = go 0 where
     go z ( (k,c):kcx) | null kcx = [(k,c,z+c)]
                       | otherwise = (k,c,z+c) : go (z+c) kcx

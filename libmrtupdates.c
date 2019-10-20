@@ -387,7 +387,9 @@ struct mrt *mrt_updates_parse(struct chunk buf) {
   void *ptr = buf.data;
 #ifdef CDFFILE
   cdffile = fopen("cdf.txt", "w");
+  fprintf(cdffile, "max_update_length max_raw_attributes_size max_raw_nlri_size max_nlri_length max_raw_community_size max_raw_attributes_size max_path_length\n");
 #endif
+
   mrt = calloc(1, sizeof(*mrt));
   mrt->type = TYPE_BGP4MP;
   while (bytes_left >= MIN_MRT_LENGTH) {
