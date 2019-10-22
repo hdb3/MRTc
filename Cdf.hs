@@ -1,7 +1,7 @@
 module Main where
 import qualified Data.ByteString.Lazy.Char8 as C
 import System.Environment(getArgs)
-import qualified Data.IntMap as Map
+import qualified Data.IntMap.Strict as Map
 import Data.List(foldl',intercalate)
 import System.IO(openFile,IOMode(WriteMode),hPutStrLn,hClose)
 
