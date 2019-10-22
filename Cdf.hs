@@ -30,7 +30,7 @@ getAggregate fn = do
         updater m n = Map.insertWith (+) n 1 m
         updater2 :: [Map.IntMap Int] -> [Int] -> [Map.IntMap Int]
         updater2 = zipWith updater
-        parsedContent = foldl updater2 emptyMaps fieldList
+        parsedContent = foldl' updater2 emptyMaps fieldList
         aggregate = zip columnNames (map Map.toAscList parsedContent)
     putStrLn $ "read the following columns: " ++ unwords columnNames
     return aggregate
