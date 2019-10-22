@@ -1,0 +1,12 @@
+
+Given the distribution of storage size, optimise a two level hierarchy which uses the samller size storage for a majority of elemants and a larger size for the remainder.
+The larger size is fixed at the maximum observed/permitted size, the smaller is the optimisation objective.
+The objective function(?) is the storage saving gain, expressed as a ratio with the default largest size used by using the default maximum for every element.
+
+Given the distribution series [(k1,c1),(k2,c2), ..... (kn,cn), ...... (kmax,cmax)]
+the ultimate goal is a a series [...(kn,gain_n)...] for which a given kn has the largest gain_n as the single solution, the seires showing a graph of the sensitivity of the selection.
+
+At each point in the series the gain is calculated as the (variable) storage requirement based on using that k value as the breakpoint.
+The storage requirement with a split at kn where the cumulative total up to and including kn is cn is: gain = kn*cn + kmax * (cmax-cn).
+The relative gain over the default storage scheme is the ratio of the respective calculated storage requirements 'gain' and 'default'  ( = kmax * cmax),
+i.e. (kmax * cmax) / (kn*cn + kmax * (cmax-cn))
