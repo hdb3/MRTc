@@ -51,12 +51,39 @@ mainMap = do
     putStrLn $ "the map has " ++ show (Map.size m) ++ " elements"
     putStrLn $ "the list has " ++ show (length lm) ++ " elements"
     mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ show (length l)) lm
+    mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ show ( sumColumn4 l)) lm
+
+sumColumn4 = simpleCollect . simpleRead 4
 
 readInt :: C.ByteString -> Int
 readInt s = fst $ fromJust $ C.readInt s
 
 readInts :: C.ByteString -> [Int]
 readInts s = map readInt $ C.words s
+
+simpleCollect :: (Int,Int,Int,Int,Int) -> (Double,Double,Int,Int)
+simpleCollect (count,mn,mx,sum,sqsum) =
+    let count' = fromIntegral count
+        sum'   = fromIntegral sum
+    in ( sum' / count'
+       ,  sqrt ( fromIntegral ( (count * sqsum) - (sum * sum) ) ) / count'
+       , mn
+       , mx
+       )
+
+simpleRead :: Int -> [C.ByteString] -> (Int,Int,Int,Int,Int)
+simpleRead n lines = simpleSum $ map ( readInt . (!! n) . C.words ) lines
+
+simpleSum :: [Int] -> (Int,Int,Int,Int,Int)
+simpleSum = foldl' simpleSum' (0,-1,0,0,0)
+    where
+        simpleSum' (count,mn,mx,sum,sqsum) v =
+            (count+1
+            , if -1 == mn then v else min mn v
+            , max mx v
+            ,sum + v
+            ,sqsum + v * v
+            )
 
 getTuple (a : b :_) = (a,b)
 getTuple' i j l | j < length l = (l !! i, l !! j)
