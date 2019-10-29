@@ -4,7 +4,7 @@ import System.Environment(getArgs)
 import qualified Data.Map.Strict as Map
 import Data.List(foldl',intercalate,sortOn,maximumBy)
 import Data.Maybe(fromJust)
-
+import Text.Printf
 {-
 -- SumSD
 -- sum multiple rows with the same control parameters
@@ -52,10 +52,10 @@ mainMap = do
     putStrLn $ "the list has " ++ show (length lm) ++ " elements"
     -- mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ show (length l)) lm
     n <- getArgInt
-    mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ show ( sumColumn n l)) lm
+    mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ showCollect ( sumColumn n l)) lm
     -- mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ show ( simpleRead n l)) lm
 
-sumColumn :: Int -> [C.ByteString] -> (Double,Double,Double,Double)
+sumColumn :: Int -> [C.ByteString] -> (Double,Double,Double,Double,Double)
 sumColumn n = simpleCollect . simpleRead n
 
 readDouble :: C.ByteString -> Double
@@ -67,17 +67,30 @@ readInt s = fst $ fromJust $ C.readInt s
 readInts :: C.ByteString -> [Int]
 readInts s = map readInt $ C.words s
 
-simpleCollect :: (Int,Double,Double,Double,Double) -> (Double,Double,Double,Double)
+showCollect :: (Double,Double,Double,Double,Double) -> String
+--showCollect (a,b,c,d,e) = let p v = show v in unwords $ map p [a,b,c,d,e] 
+showCollect (a,b,c,d,e) = let p v = printf "%0.2f" v in unwords $ map p [a,b,c,d,e] 
+
+simpleCollect :: (Int,Double,Double,Double,Double) -> (Double,Double,Double,Double,Double)
 simpleCollect (count,mn,mx,sum,sqsum) =
     let count' = fromIntegral count
-    in ( sum / count'
-       ,  sqrt ( (count' * sqsum) - (sum * sum) )  / count'
+        mean = sum / count'
+        sd = sqrt ( (count' * sqsum) - (sum * sum) )  / count'
+        rsdPercent = 100.0 * sd / mean
+    in ( mean
+       , sd
+       , rsdPercent
        , mn
        , mx
        )
 
 simpleRead :: Int -> [C.ByteString] -> (Int, Double, Double, Double, Double)
 simpleRead n lines = simpleSum $ map ( readDouble . (!! n) . C.words ) lines
+
+simpleReadR :: Int -> [C.ByteString] -> (Int, Double, Double, Double, Double)
+simpleReadR n lines = simpleSum $ map ( reciprocal . readDouble . (!! n) . C.words ) lines
+
+reciprocal x = 1.0 / x
 
 -- simpleSum :: [Int] -> (Int,Int,Int,Int,Int)
 simpleSum = foldl' simpleSum' (0,-1,0,0,0)
