@@ -50,22 +50,32 @@ mainMap = do
         f' m line = let (k,v) = C.break (== ' ') line in Map.insertWith (++) k [C.tail v] m
         m = foldl' f' Map.empty (tail content)
         lm = Map.toAscList m
+        records = makeRecords lm "conditioning" (showCollect . sumColumn 7 ) ++
+                  makeRecords lm "ssrt" (showCollect . sumColumn 18 ) ++
+                  makeRecords lm "msrt" (showCollect . sumColumn 19 ) ++
+                  makeRecords lm "ssbt" (showCollect . simpleCollect . rollupRead )
+    mapM_ print records
+
+
     putStrLn $ "the map has " ++ show (Map.size m) ++ " elements"
     -- mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ show (length l)) lm
     -- n <- getArgInt
-    putStrLn "\ninitial conditioning duration"
+    -- putStrLn "\ninitial conditioning duration"
     makeFile lm "conditioning" (showCollect . sumColumn 7 )
     -- mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ showCollect ( sumColumn 7 l)) lm
-    putStrLn "\nsingle source rate test"
+    -- putStrLn "\nsingle source rate test"
     makeFile lm "ssrt" (showCollect . sumColumn 18 )
     -- mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ showCollect ( sumColumn 18 l)) lm
-    putStrLn "\nmultiple source rate test"
+    -- putStrLn "\nmultiple source rate test"
     makeFile lm "msrt" (showCollect . sumColumn 19 )
     --mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ showCollect ( sumColumn 19 l)) lm
     -- mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ show ( rollupRead l)) lm
-    putStrLn "\nsingle source burst test"
+    -- putStrLn "\nsingle source burst test"
     makeFile lm "ssbt" (showCollect . simpleCollect . rollupRead )
     -- mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ show ( showCollect $ simpleCollect $ rollupRead l)) lm
+
+makeRecords resultSet name f = 
+    map (\(k,l) -> ( words ( substitute '/' ' ' $ trimQuotes ( C.unpack k )) ++ [name] , f l)) resultSet
 
 makeFile resultSet name f = do
     h <- openFile (name ++ ".txt") WriteMode
