@@ -31,7 +31,8 @@ each map entry is processed alike, the key provides the first field in the aggre
 map entry processing is a fold over the line list which passes the word list in full
 for raw values the return value is a tuple (count,min,max,sum,sqsum)
 and the subsequent processing yields (mean,sd,min,max)
-For intermediate aggregates the result is the same but themethod different (sum is count * mean, sqsum is calculated
+
+For intermediate aggregates the result is the same but the method different (sum is count * mean, sqsum is calculated
 by the inverse of double sd = sqrt ( (count * sqsum) - (sum * sum) ) / count;
    count * sd = sqrt ( (count * sqsum) - (sum * sum) )
   (count * sd)^2 = (count * sqsum) - (sum * sum)
@@ -49,11 +50,17 @@ mainMap = do
         m = foldl' f' Map.empty (tail content)
         lm = Map.toAscList m
     putStrLn $ "the map has " ++ show (Map.size m) ++ " elements"
-    putStrLn $ "the list has " ++ show (length lm) ++ " elements"
     -- mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ show (length l)) lm
-    n <- getArgInt
-    mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ showCollect ( sumColumn n l)) lm
-    -- mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ show ( simpleRead n l)) lm
+    -- n <- getArgInt
+    putStrLn "\ninitial conditioning duration"
+    mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ showCollect ( sumColumn 7 l)) lm
+    putStrLn "\nsingle source rate test"
+    mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ showCollect ( sumColumn 18 l)) lm
+    putStrLn "\nmultiple source rate test"
+    mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ showCollect ( sumColumn 19 l)) lm
+    -- mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ show ( rollupRead l)) lm
+    putStrLn "\nsingle source burst test"
+    mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ show ( showCollect $ simpleCollect $ rollupRead l)) lm
 
 sumColumn :: Int -> [C.ByteString] -> (Double,Double,Double,Double,Double)
 sumColumn n = simpleCollect . simpleRead n
@@ -69,7 +76,7 @@ readInts s = map readInt $ C.words s
 
 showCollect :: (Double,Double,Double,Double,Double) -> String
 --showCollect (a,b,c,d,e) = let p v = show v in unwords $ map p [a,b,c,d,e] 
-showCollect (a,b,c,d,e) = let p v = printf "%0.2f" v in unwords $ map p [a,b,c,d,e] 
+showCollect (a,b,c,d,e) = let p v = printf "%0.3f" v in unwords $ map p [a,b,c,d,e] 
 
 simpleCollect :: (Int,Double,Double,Double,Double) -> (Double,Double,Double,Double,Double)
 simpleCollect (count,mn,mx,sum,sqsum) =
@@ -103,12 +110,40 @@ simpleSum = foldl' simpleSum' (0,-1,0,0,0)
             ,sqsum + v * v
             )
 
-getTuple (a : b :_) = (a,b)
-getTuple' i j l | j < length l = (l !! i, l !! j)
-                -- | otherwise = (-1,-1)
 
-readTuple = getTuple . readInts
-readTuples = map readTuple . C.lines
+rollupRead :: [C.ByteString] -> (Int, Double, Double, Double, Double)
+rollupRead lines = rollupSum $ map ( readRollup . C.words ) lines
+
+readRollup :: [C.ByteString] -> (Int, Double, Double, Double, Double)
+-- CONDITIONING MEAN MAX MIN STDDEV REPEAT
+-- 4            5    6   7   8      12
+-- 7            8    9   10  11     15
+-- read count , mean , sd and back-calculate to sum and sqsum
+readRollup wx = (count,mean,sd,mn,mx) where
+    mean = readDouble $ wx !! 8
+    mx = readDouble $ wx !! 9
+    mn = readDouble $ wx !! 10
+    sd = readDouble $ wx !! 11
+    count = readInt $ wx !! 15
+
+rollupSum :: [(Int, Double, Double, Double, Double)] -> (Int, Double, Double, Double, Double)
+rollupSum = foldl' rollupSum' (0,-1.0,0.0,0.0,0.0)
+    where
+        rollupSum' :: (Int, Double, Double, Double, Double)
+            -> (Int, Double, Double, Double, Double)
+            -> (Int, Double, Double, Double, Double)
+        rollupSum' (count,mn,mx,sum,sqsum) (count'',mean',sd',mn',mx') =
+            let
+                count' = fromIntegral count''
+                sum' = count' * mean'
+                sqsum' = ((count' * sd')^2  + sum' * sum') / count'
+            in (count + count''
+               , if mn < 0.0 then mn' else min mn mn'
+               , max mx mx'
+               , sum + sum'
+               , sqsum + sqsum'
+               )
+
 
 getContent = do
     args <- getArgs
