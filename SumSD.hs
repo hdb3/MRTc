@@ -5,6 +5,7 @@ import qualified Data.Map.Strict as Map
 import Data.List(foldl',intercalate,sortOn,maximumBy)
 import Data.Maybe(fromJust)
 import Text.Printf
+import System.IO
 {-
 -- SumSD
 -- sum multiple rows with the same control parameters
@@ -53,14 +54,29 @@ mainMap = do
     -- mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ show (length l)) lm
     -- n <- getArgInt
     putStrLn "\ninitial conditioning duration"
-    mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ showCollect ( sumColumn 7 l)) lm
+    makeFile lm "conditioning" (showCollect . sumColumn 7 )
+    -- mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ showCollect ( sumColumn 7 l)) lm
     putStrLn "\nsingle source rate test"
-    mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ showCollect ( sumColumn 18 l)) lm
+    makeFile lm "ssrt" (showCollect . sumColumn 18 )
+    -- mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ showCollect ( sumColumn 18 l)) lm
     putStrLn "\nmultiple source rate test"
-    mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ showCollect ( sumColumn 19 l)) lm
+    makeFile lm "msrt" (showCollect . sumColumn 19 )
+    --mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ showCollect ( sumColumn 19 l)) lm
     -- mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ show ( rollupRead l)) lm
     putStrLn "\nsingle source burst test"
-    mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ show ( showCollect $ simpleCollect $ rollupRead l)) lm
+    makeFile lm "ssbt" (showCollect . simpleCollect . rollupRead )
+    -- mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ show ( showCollect $ simpleCollect $ rollupRead l)) lm
+
+makeFile resultSet name f = do
+    h <- openFile (name ++ ".txt") WriteMode
+    mapM_ (\(k,l) -> hPutStrLn h $ substitute '/' ' ' $ trimQuotes ( C.unpack k ) ++ " " ++ f l) resultSet
+    hClose h
+
+substitute x y = map (\c -> if c == x then y else c )
+
+trimQuotes = reverse . trim' . reverse . trim' where
+    trim' ('"':s) = s
+    trim' sx = sx
 
 sumColumn :: Int -> [C.ByteString] -> (Double,Double,Double,Double,Double)
 sumColumn n = simpleCollect . simpleRead n
