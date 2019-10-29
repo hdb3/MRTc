@@ -50,10 +50,16 @@ mainMap = do
         lm = Map.toAscList m
     putStrLn $ "the map has " ++ show (Map.size m) ++ " elements"
     putStrLn $ "the list has " ++ show (length lm) ++ " elements"
-    mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ show (length l)) lm
-    mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ show ( sumColumn4 l)) lm
+    -- mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ show (length l)) lm
+    n <- getArgInt
+    mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ show ( sumColumn n l)) lm
+    -- mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ show ( simpleRead n l)) lm
 
-sumColumn4 = simpleCollect . simpleRead 4
+sumColumn :: Int -> [C.ByteString] -> (Double,Double,Double,Double)
+sumColumn n = simpleCollect . simpleRead n
+
+readDouble :: C.ByteString -> Double
+readDouble = read . C.unpack
 
 readInt :: C.ByteString -> Int
 readInt s = fst $ fromJust $ C.readInt s
@@ -61,20 +67,19 @@ readInt s = fst $ fromJust $ C.readInt s
 readInts :: C.ByteString -> [Int]
 readInts s = map readInt $ C.words s
 
-simpleCollect :: (Int,Int,Int,Int,Int) -> (Double,Double,Int,Int)
+simpleCollect :: (Int,Double,Double,Double,Double) -> (Double,Double,Double,Double)
 simpleCollect (count,mn,mx,sum,sqsum) =
     let count' = fromIntegral count
-        sum'   = fromIntegral sum
-    in ( sum' / count'
-       ,  sqrt ( fromIntegral ( (count * sqsum) - (sum * sum) ) ) / count'
+    in ( sum / count'
+       ,  sqrt ( (count' * sqsum) - (sum * sum) )  / count'
        , mn
        , mx
        )
 
-simpleRead :: Int -> [C.ByteString] -> (Int,Int,Int,Int,Int)
-simpleRead n lines = simpleSum $ map ( readInt . (!! n) . C.words ) lines
+simpleRead :: Int -> [C.ByteString] -> (Int, Double, Double, Double, Double)
+simpleRead n lines = simpleSum $ map ( readDouble . (!! n) . C.words ) lines
 
-simpleSum :: [Int] -> (Int,Int,Int,Int,Int)
+-- simpleSum :: [Int] -> (Int,Int,Int,Int,Int)
 simpleSum = foldl' simpleSum' (0,-1,0,0,0)
     where
         simpleSum' (count,mn,mx,sum,sqsum) v =
@@ -100,51 +105,3 @@ getArgInt :: IO Int
 getArgInt = do
     args <- getArgs
     return ( read (args !! 1) :: Int )
-
-getMap = do
-    content <- C.lines <$> getContent
-    let tuples = map readTuple content
-    return $ foldl' (\m (k,v)-> Map.insertWith (+) k v m) Map.empty tuples
-
-mainTupleMap = do
-    -- content <- C.lines <$> getContent
-    -- let tuples = map readTuple content
-    --    m = foldl' (\m (k,v)-> Map.insertWith (+) k v m) Map.empty tuples
-    m <- getMap  
-    -- let lm = Map.toAscList m
-    putStrLn $ "the map has " ++ show (Map.size m) ++ " elements"
-
-getList = do
-    content <- C.lines <$> getContent
-    let tuples = map readTuple content
-    return $ sortOn fst tuples
-    
-mainTuple = do
-    l <- getList
-    let lx = cumulative $ filter ( (0 /=) . snd ) l
-    putStrLn $ unlines $ map show lx
-
-    putStrLn $ "the raw list has " ++ show (length l) ++ " elements"
-    putStrLn $ "the filtered list has " ++ show (length lx) ++ " elements"
-
-
-cumulative :: [(Int,Int)] -> [(Int,Int)]
-cumulative = go 0 where
-    go z ( (k,c):kcx) | null kcx = [(k,z+c)]
-                    | otherwise = (k,z+c) : go (z+c) kcx
-
-mainOptimize = do
-    n <- getArgInt
-    l <- getList
-    let lx = cumulative $ filter ( (0 /=) . snd ) l
-        (kmax,cmax) = last lx
-    putStrLn $ "kmax / cmax = " ++ show kmax ++ "/" ++ show cmax
-
-    putStrLn $ "the raw list has " ++ show (length l) ++ " elements"
-    putStrLn $ "the filtered list has " ++ show (length lx) ++ " elements"
-    let 
-        gain (kn,cn) = (kn, fromIntegral (kmax * cmax) / fromIntegral (kn*cn + kmax * (cmax-cn)) :: Double)
-        gains = map gain lx
-        maxGain = maximumBy (\(_,a) (_,b) -> compare a b) gains
-    -- putStrLn $ unlines $ map show gains
-    putStrLn $ "optimal breakpoint and gain is at " ++ show maxGain
