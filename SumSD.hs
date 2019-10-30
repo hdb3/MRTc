@@ -2,7 +2,7 @@ module Main where
 import qualified Data.ByteString.Lazy.Char8 as C
 import System.Environment(getArgs)
 import qualified Data.Map.Strict as Map
-import Data.List(foldl',intercalate,sortOn,maximumBy)
+import Data.List(foldl',intercalate,sortOn,maximumBy,(\\))
 import Data.Maybe(fromJust)
 import Text.Printf
 import System.IO
@@ -40,11 +40,86 @@ by the inverse of double sd = sqrt ( (count * sqsum) - (sum * sum) ) / count;
   (count * sd)^2  + sum * sum = count * sqsum
   ((count * sd)^2  + sum * sum) /count = sqsum
 )
+
+Design for graph defintion
+
+The input records have regularly ordered lists of strings as tags.
+The selection process consists of defining the tag indices to be used to define a graph.
+The other indices should be held fixed for a single graph.
+The result is a set of graphs, whose defined by the parameters which were kept fixed.
+The gnult polt format allows up to three levels of hierarchy for a plot.
+The first two levels can be labeled by setting the row and column headers in one file.
+The third level requires multiple  plot statmenets and input files for each group.
+
+Formatting the selected records
+Assume that the records have been reduced to a list like this:
+[(String,([String,Data]))
+and that the inner keys are consistent, so that
+([cols],[(row,[rec]))   :: [(([String],[(String,Data)])
+could be derived by simpling picking off the keys from the first row.
+Then the desired output is one line:
+  "null" : cols
+followed by 'n' rows of:
+   row : recs
+
+and the rendering is trivial. 
+
+Generating the buckets
+Each bucket corresponds to a single plot.
+For now assume two level hierarchy, i.e. there are rows and columns corresponding to two tag positions,
+and all remaining tags are grouped to define the graph title / content.
+First the record keys should be split to enable the partitioning: given two indices which are to be used for row and column,
+we remove these elements to a separate tuple field, and leave the remainder intact.
+
+module Nest where
+
 -}
+-- The function signature is:
+f :: Int -> Int -> ([String],a) -> ([String],(String,String,a))
+f i j (sx,a) = (sx',(si,sj,a)) where (sx',si,sj) = f' i j sx
+--  From this we build a map which will contain buckets of form [(String,String,a)].
+--  The inner function is:
+f' :: Int -> Int -> [String] -> ([String],String,String)
+--  and is this:
+f' i j sx = (rx,xi,xj) where
+    l = length sx
+    xi = sx !! i
+    xj = sx !! j  
+    rxi = [0..l-1] \\ [i,j]
+    rx = foldl' (\a i -> a ++ [sx !! i]) [] rxi
+
+h z = Map.toAscList m where
+    m = foldl' f' Map.empty z 
+    f' m (k,v) = Map.insertWith (++) k [v] m 
+    
+{-
+Rendering the buckets
+We want to generate [[a]].
+Build a Map over the outer key, then reduce to list, for a list of (outer key, [(inner key , a)]) tuples.
+The row labels are the outer keys.
+Get a set of column labels by mapping fst over the head of the list.
+Get the content by mapping snd over the list.
+
+-}
+
+
+g :: [(String,String,a)] -> ([String],[String],[[a]])
+  
+g z = (rows,columns,axx) where
+   
+    m = foldl' f' Map.empty z 
+    f' m (r,c,v) = Map.insertWith (++) r [(c,v)] m 
+    l = Map.toAscList m 
+    rows = map fst l 
+    columns = map fst $ snd $ head l 
+    axx = map ( map snd. snd ) l 
 
 main = mainMap
 
 mainMap = do
+    args <- getArgs
+    -- print (args !! 0 , args !! 1)
+    let (i,j) = if 3 > length args then (0,1) else (read $ args !! 1 , read $ args !! 2) :: (Int,Int)
     content <- C.lines <$> getContent
     let
         f' m line = let (k,v) = C.break (== ' ') line in Map.insertWith (++) k [C.tail v] m
@@ -54,25 +129,26 @@ mainMap = do
                   makeRecords lm "ssrt" (showCollect . sumColumn 18 ) ++
                   makeRecords lm "msrt" (showCollect . sumColumn 19 ) ++
                   makeRecords lm "ssbt" (showCollect . simpleCollect . rollupRead )
-    mapM_ print records
-
+    -- mapM_ print records
 
     putStrLn $ "the map has " ++ show (Map.size m) ++ " elements"
-    -- mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ show (length l)) lm
-    -- n <- getArgInt
+
+    let buckets =  h $ map (f i j) records
+        --buckets = 
+    -- print buckets
+    putStrLn "The following buckets were found: "
+    putStrLn $ unlines $ map ( show . fst) buckets
+
+{-
     -- putStrLn "\ninitial conditioning duration"
     makeFile lm "conditioning" (showCollect . sumColumn 7 )
-    -- mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ showCollect ( sumColumn 7 l)) lm
     -- putStrLn "\nsingle source rate test"
     makeFile lm "ssrt" (showCollect . sumColumn 18 )
-    -- mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ showCollect ( sumColumn 18 l)) lm
     -- putStrLn "\nmultiple source rate test"
     makeFile lm "msrt" (showCollect . sumColumn 19 )
-    --mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ showCollect ( sumColumn 19 l)) lm
-    -- mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ show ( rollupRead l)) lm
     -- putStrLn "\nsingle source burst test"
     makeFile lm "ssbt" (showCollect . simpleCollect . rollupRead )
-    -- mapM_ (\(k,l) -> putStrLn $ C.unpack k ++ " : " ++ show ( showCollect $ simpleCollect $ rollupRead l)) lm
+-}
 
 makeRecords resultSet name f = 
     map (\(k,l) -> ( words ( substitute '/' ' ' $ trimQuotes ( C.unpack k )) ++ [name] , f l)) resultSet
