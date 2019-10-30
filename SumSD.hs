@@ -114,6 +114,13 @@ g z = (rows,columns,axx) where
     columns = map fst $ snd $ head l 
     axx = map ( map snd. snd ) l 
 
+render :: Int -> ([String],[String],[[String]]) -> [String]
+render n (rows,columns,axx) = header : body where
+    axx' = map ( map ( unwords . take n . words)) axx -- drop the unwanted rsd/min/max columns
+    header = "<null>" ++ concatMap (\c -> concat $ replicate n ( ' ' : c)) columns
+    -- header = "- " ++ unwords $ concatMap ( replicate 2) columns
+    body = map (\(a,b) -> a ++ " " ++ unwords b) ( zip rows axx' )
+
 main = mainMap
 
 mainMap = do
@@ -138,6 +145,28 @@ mainMap = do
     -- print buckets
     putStrLn "The following buckets were found: "
     putStrLn $ unlines $ map ( show . fst) buckets
+
+    let (title1,bucket1) = head buckets
+        graph1 = g bucket1
+    putStrLn $ "working with the first bucket: " ++ unwords title1
+    --print graph1
+    --putStrLn $ unlines $ render 2 graph1
+
+    writeFile "tmp.gpl" $ unlines $ gplot (title1,bucket1)
+
+gplot (title,bucket) = datas bucket ++ commands title where
+--gplot (title,bucket) = commands title ++ datas bucket where
+
+    commands t = [ "set title \"" ++ unwords t ++ "\""
+                 , "set boxwidth 0.9 relative"
+                 , "set style data histograms"
+                 , "set style histogram errorbars"
+                 , "set style fill solid 1.0 border lt -1"
+                 , "set yrange [0:*]"
+                 , "plot for [i=2:*:2] \"$DATA\"  using i:i+1:xtic(1) title columnheader"
+                 ]
+
+    datas s = "$DATA << EOD " : (render 2 $ g bucket)  ++ ["EOD"]
 
 {-
     -- putStrLn "\ninitial conditioning duration"
