@@ -6,6 +6,7 @@ import Data.List(foldl',intercalate,sortOn,maximumBy,(\\))
 import Data.Maybe(fromJust)
 import Text.Printf
 import System.IO
+import System.Process
 {-
 -- SumSD
 -- sum multiple rows with the same control parameters
@@ -147,6 +148,8 @@ mainMap = do
         let bucket = buckets !! (bn-1)
         putStrLn $ "working with bucket " ++ show bn ++ " title " ++ unwords ( fst bucket )
         writeFile "tmp.gpl" $ unlines $ gplot bucket
+        putStrLn "output written to \"tmp.gpl\""
+        callCommand "gnuplot -p tmp.gpl"
     else do
         let (title1,bucket1) = head buckets
             graph1 = g bucket1
