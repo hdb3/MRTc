@@ -125,8 +125,8 @@ main = mainMap
 
 mainMap = do
     args <- getArgs
-    -- print (args !! 0 , args !! 1)
     let (i,j) = if 3 > length args then (0,1) else (read $ args !! 1 , read $ args !! 2) :: (Int,Int)
+    let bn = if 3 > length args then 0 else read $ args !! 3 :: Int
     content <- C.lines <$> getContent
     let
         f' m line = let (k,v) = C.break (== ' ') line in Map.insertWith (++) k [C.tail v] m
@@ -141,21 +141,22 @@ mainMap = do
     putStrLn $ "the map has " ++ show (Map.size m) ++ " elements"
 
     let buckets =  h $ map (f i j) records
-        --buckets = 
-    -- print buckets
-    putStrLn "The following buckets were found: "
-    putStrLn $ unlines $ map ( show . fst) buckets
+        bucketNames = map ( unwords . fst) buckets
+        bnns = zipWith (\s n -> show n ++ " \"" ++ s ++ "\"" ) bucketNames [1..]
+    if bn > 1 then do
+        let bucket = buckets !! (bn-1)
+        putStrLn $ "working with bucket " ++ show bn ++ " title " ++ unwords ( fst bucket )
+        writeFile "tmp.gpl" $ unlines $ gplot bucket
+    else do
+        let (title1,bucket1) = head buckets
+            graph1 = g bucket1
+        putStrLn "The following buckets were found: "
+        putStrLn $ unlines bnns
+        putStrLn $ "working with the first bucket: " ++ unwords title1
 
-    let (title1,bucket1) = head buckets
-        graph1 = g bucket1
-    putStrLn $ "working with the first bucket: " ++ unwords title1
-    --print graph1
-    --putStrLn $ unlines $ render 2 graph1
-
-    writeFile "tmp.gpl" $ unlines $ gplot (title1,bucket1)
+        writeFile "tmp.gpl" $ unlines $ gplot (title1,bucket1)
 
 gplot (title,bucket) = datas bucket ++ commands title where
---gplot (title,bucket) = commands title ++ datas bucket where
 
     commands t = [ "set title \"" ++ unwords t ++ "\""
                  , "set boxwidth 0.9 relative"
@@ -166,7 +167,7 @@ gplot (title,bucket) = datas bucket ++ commands title where
                  , "plot for [i=2:*:2] \"$DATA\"  using i:i+1:xtic(1) title columnheader"
                  ]
 
-    datas s = "$DATA << EOD " : (render 2 $ g bucket)  ++ ["EOD"]
+    datas s = "$DATA << EOD " : render 2 ( g bucket)  ++ ["EOD"]
 
 {-
     -- putStrLn "\ninitial conditioning duration"
