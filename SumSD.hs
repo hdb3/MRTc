@@ -126,8 +126,9 @@ main = mainMap
 
 mainMap = do
     args <- getArgs
+    let parameters = unwords args
     let (i,j) = if 3 > length args then (0,1) else (read $ args !! 1 , read $ args !! 2) :: (Int,Int)
-    let bn = if 3 > length args then 0 else read $ args !! 3 :: Int
+    let bn = if 4 > length args then 0 else read $ args !! 3 :: Int
     content <- C.lines <$> getContent
     let
         f' m line = let (k,v) = C.break (== ' ') line in Map.insertWith (++) k [C.tail v] m
@@ -138,17 +139,17 @@ mainMap = do
                   makeRecords lm "msrt" (showCollect . sumColumn 19 ) ++
                   makeRecords lm "ssbt" (showCollect . simpleCollect . rollupRead )
     -- mapM_ print records
-    rawPrint "raw.txt" records
+    rawPrint "raw.txt" [parameters] records
 
     putStrLn $ "the map has " ++ show (Map.size m) ++ " elements"
 
     let buckets =  h $ map (f i j) records
         bucketNames = map ( unwords . fst) buckets
         bnns = zipWith (\s n -> show n ++ " \"" ++ s ++ "\"" ) bucketNames [1..]
-    if bn > 1 then do
+    if bn > 0 then do
         let bucket = buckets !! (bn-1)
         putStrLn $ "working with bucket " ++ show bn ++ " title " ++ unwords ( fst bucket )
-        writeFile "tmp.gpl" $ unlines $ gplot bucket
+        writeFile "tmp.gpl" $ unlines $ ("# command line parameters " ++ parameters) : gplot bucket
         putStrLn "output written to \"tmp.gpl\""
         callCommand "gnuplot -p tmp.gpl"
     else do
@@ -156,9 +157,9 @@ mainMap = do
             graph1 = g bucket1
         putStrLn "The following buckets were found: "
         putStrLn $ unlines bnns
-        putStrLn $ "working with the first bucket: " ++ unwords title1
+        -- putStrLn $ "working with the first bucket: " ++ unwords title1
 
-        writeFile "tmp.gpl" $ unlines $ gplot (title1,bucket1)
+        -- writeFile "tmp.gpl" $ unlines $ gplot (title1,bucket1)
 
 gplot (title,bucket) = datas bucket ++ commands title where
 
@@ -188,12 +189,12 @@ gplot (title,bucket) = datas bucket ++ commands title where
 makeRecords resultSet name f = 
     map (\(k,l) -> ( words ( substitute '/' ' ' $ trimQuotes ( C.unpack k )) ++ [name] , f l)) resultSet
 
-rawPrint name resultSet = do
+rawPrint name comments resultSet = do
     h <- openFile name WriteMode
+    mapM_ ( \s -> hPutStrLn h $ "# " ++ s ) comments
     mapM_ (\(k,l) -> hPutStrLn h $ ( unwords k ) ++ " " ++ l) resultSet
     hClose h
-{-
--}
+
 makeFile resultSet name f = do
     h <- openFile (name ++ ".txt") WriteMode
     mapM_ (\(k,l) -> hPutStrLn h $ substitute '/' ' ' $ trimQuotes ( C.unpack k ) ++ " " ++ f l) resultSet
