@@ -1,0 +1,17 @@
+mkdir nogo
+./SumSD nogo.log 2 0 1 ; cp tmp.gpl nogo/conditioning.gpl
+./SumSD nogo.log 2 0 2 ; cp tmp.gpl nogo/msrt.gpl
+./SumSD nogo.log 2 0 3 ; cp tmp.gpl nogo/ssbt.gpl
+./SumSD nogo.log 2 0 4 ; cp tmp.gpl nogo/ssrt.gpl
+cd nogo
+
+for n in conditioning ssbt ssrt msrt
+ do
+   csplit $n.gpl /SPLIT/ 
+   mv xx00 $n.dat 
+   sed -i -e "s/peers.//" $n.dat
+   cat $n.dat ../lines.gpl > $n.lines.gpl 
+   sed -i -e "s/simple conditioning/$n/" $n.lines.gpl 
+   gnuplot -p $n.lines.gpl 
+ done
+
