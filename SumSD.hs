@@ -163,7 +163,9 @@ mainMap = do
 
 gplot (title,bucket) = datas bucket ++ commands title where
 
-    commands t = [ "set term x11 enhanced"
+    commands t = [ "# -----SPLIT-----"
+                 , "# commands"
+                 , "set term x11 enhanced"
                  , "set title \"" ++ unwords t ++ "\""
                  , "set boxwidth 0.9 relative"
                  , "set style data histograms"
