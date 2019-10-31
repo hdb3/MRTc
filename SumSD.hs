@@ -138,6 +138,7 @@ mainMap = do
                   makeRecords lm "msrt" (showCollect . sumColumn 19 ) ++
                   makeRecords lm "ssbt" (showCollect . simpleCollect . rollupRead )
     -- mapM_ print records
+    rawPrint "raw.txt" records
 
     putStrLn $ "the map has " ++ show (Map.size m) ++ " elements"
 
@@ -161,7 +162,8 @@ mainMap = do
 
 gplot (title,bucket) = datas bucket ++ commands title where
 
-    commands t = [ "set title \"" ++ unwords t ++ "\""
+    commands t = [ "set term x11 enhanced"
+                 , "set title \"" ++ unwords t ++ "\""
                  , "set boxwidth 0.9 relative"
                  , "set style data histograms"
                  , "set style histogram errorbars"
@@ -186,6 +188,12 @@ gplot (title,bucket) = datas bucket ++ commands title where
 makeRecords resultSet name f = 
     map (\(k,l) -> ( words ( substitute '/' ' ' $ trimQuotes ( C.unpack k )) ++ [name] , f l)) resultSet
 
+rawPrint name resultSet = do
+    h <- openFile name WriteMode
+    mapM_ (\(k,l) -> hPutStrLn h $ ( unwords k ) ++ " " ++ l) resultSet
+    hClose h
+{-
+-}
 makeFile resultSet name f = do
     h <- openFile (name ++ ".txt") WriteMode
     mapM_ (\(k,l) -> hPutStrLn h $ substitute '/' ' ' $ trimQuotes ( C.unpack k ) ++ " " ++ f l) resultSet
