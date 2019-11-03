@@ -121,8 +121,9 @@ struct msg_list_item *mrt_parse(struct chunk buf, struct stats_bgp4mp *sp) {
     } else if (msg_subtype == BGP4MP_MESSAGE_AS4) {
       sp->bgp_messages++;
       next = calloc(1, sizeof(struct msg_list_item));
+      // the BGP4MP_MESSAGE Subtype header is 20 bytes for IPv4...
       (next->msg).data = buf.data + MIN_MRT_LENGTH + 20;
-      (next->msg).length = msg_length - MIN_MRT_LENGTH;
+      (next->msg).length = msg_length - 20;
       if (NULL == head) {
         head = next;
       } else {
@@ -195,6 +196,14 @@ int process_bgp_message(struct chunk msg, struct stats_bgp4mp *sp) {
   return is_update;
 };
 
+void write_msgs(const int fd, struct msg_list_item *list) {
+
+  while (list != NULL) {
+    int tmp = write(fd, list->msg.data, list->msg.length);
+    list = list->next;
+  };
+};
+
 void use_msgs(char *fname, struct msg_list_item *list) {
   int i = 0;
 
@@ -236,12 +245,15 @@ int main(int argc, char **argv) {
   printf("MRTc\n");
   struct stats_bgp4mp *sp = calloc(1, sizeof(*sp));
 
-  for (i = 1; i < argc; i++) {
-    buf = map_mrt_file(argv[i]);
-    msg_list = mrt_parse(buf, sp);
-    use_msgs(argv[i], msg_list);
-    msg_list = filter_msgs(msg_list, sp);
-    use_msgs("filter", msg_list);
-  };
+  buf = map_mrt_file(argv[1]);
+  msg_list = mrt_parse(buf, sp);
+  use_msgs(argv[1], msg_list);
+  msg_list = filter_msgs(msg_list, sp);
+  use_msgs("filter", msg_list);
   report_stats_bgp4mp(sp);
+  if (argc > 2) {
+    int fd = creat(argv[2], 00664);
+    write_msgs(fd, msg_list);
+    close(fd);
+  };
 };
