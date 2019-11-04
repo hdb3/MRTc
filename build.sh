@@ -12,3 +12,5 @@ gcc -DNOPPA -g -O2 -o mrtupdatetest.NOPPA  mrtupdatetest.c libmrt.a
 gcc -DNOSTATS -g -O2 -o mrtupdatetest.NOSTATS  mrtupdatetest.c libmrt.a
 gcc -DNOSTATS -DNOPPA -g -O2 -o mrtupdatetest.NOSTATSORPPA  mrtupdatetest.c libmrt.a
 gcc -g -O2 -o mrttabledumptest mrttabledumptest.c libmrt.a
+gcc -g -O2 -o main main.c libmrt.a
+gcc -g -O2  -o bgpparse bgpparse.c timespec.c

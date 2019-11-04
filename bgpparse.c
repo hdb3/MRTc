@@ -12,18 +12,24 @@
 #include <unistd.h>
 #include <time.h>
 #include "timespec.h"
+#include "alloc.c"
+#include "bigtable.c"
+#include "nlri2.h"
 
 static inline uint16_t getw16(void *p) { return __bswap_16(*(uint16_t *)p); };
 static inline uint32_t getw32(void *p) { return __bswap_32(*(uint32_t *)p); }
 static inline uint8_t getw8(void *p) { return *(uint8_t *)p; }
 static unsigned char marker[16] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
+static int large_msg_count;
+
 int msg_parse(void * base, int64_t length) {
 
-  void * ptr, *limit;
+  void *ptr, *limit, *msg;
   uint8_t msg_type;
   uint16_t msg_length;
   int msg_count=0;
+  int _large_msg_count=0;
 
   ptr = base;
   limit = base + length;
@@ -32,13 +38,24 @@ int msg_parse(void * base, int64_t length) {
     assert (0 == memcmp(marker, ptr, 16));
     msg_length = getw16(ptr + 16);
     msg_type = getw8(ptr + 18);
+    if (SMALL < msg_length) {
+      _large_msg_count++;
+      msg = alloc_large();
+    } else {
+      msg = alloc_small();
+    };
+    // printf("msg %p ptr %p\n", msg, ptr);
+    // memcpy(msg,ptr+16,msg_length-16);
     ptr += msg_length;
     msg_count++;
+
     // printf("msg_count %d msg_length %d msg_type %d\n", msg_count, msg_length, msg_type);
   };
   // printf("messages %d delta %ld\n", msg_count, limit - ptr);
   // printf("bytes_left %p messages %p\n", ptr, limit);
   assert(ptr == limit);
+  large_msg_count = _large_msg_count;
+  reinit_alloc();
   return msg_count;
 };
 
@@ -66,6 +83,8 @@ int main(int argc, char **argv) {
   buf = mmap(NULL, length, PROT_READ, MAP_PRIVATE | MAP_POPULATE, fd, 0);
   close(fd);
 
+  init_alloc();
+
   tmp = clock_gettime(CLOCK_REALTIME, &tstart);
   for (i = 0 ; i < repeat ; i++)
     message_count =  msg_parse(buf, length);
@@ -74,8 +93,10 @@ int main(int argc, char **argv) {
   printf("read %d messages\n", message_count);
   printf("complete in %f\n", duration);
   printf("M msgs/sec = %f\n", repeat * message_count / duration / 1000000);
+  printf("msgs latency (nsec) = %f\n", duration / repeat / message_count  * 1000000000);
   printf("Gbytes/sec = %f\n", repeat * length / duration / 1000000000);
   printf("(average message size is %0.2f bytes)\n", (1.0 * length) / message_count);
+  printf("large message count = %d\n",large_msg_count);
 };
 
 
