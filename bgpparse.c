@@ -18,6 +18,8 @@
 #include "bgpupdate.c"
 #include "nlri2.h"
 
+int too_long=0;
+
 static inline void parse_update(void *p, uint16_t length) {
   struct route *route; 
   uint16_t route_length = length + sizeof(struct route);
@@ -39,10 +41,27 @@ static inline void parse_update(void *p, uint16_t length) {
   void * nlri = p + 4 + withdraw_length + pathattributes_length;
 
   parse_attributes(path_attributes,pathattributes_length,route);
+  if (0 < nlri_length) {
+    void * nlrip = nlri;
+    uint64_t address;
+    while (nlrip < nlri + nlri_length) {
+      address = nlri_iter(&nlrip);
+      if (BIG==lookup_bigtable64(address))
+        too_long++;
+    };
+  };
+  if (0 < withdraw_length) {
+    void * withdrawp = withdrawn;
+    uint64_t address;
+    while (withdrawp < withdrawn + withdraw_length) {
+      address = nlri_iter(&withdrawp);
+      if (BIG==lookup_bigtable64(address))
+        too_long++;
+    };
+  };
 };
 
 static unsigned char marker[16] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-
 int msg_parse(void * base, int64_t length) {
 
   void *ptr, *limit, *msg;
@@ -53,6 +72,9 @@ int msg_parse(void * base, int64_t length) {
   ptr = base;
   limit = base + length;
 
+  reinit_bigtable();
+  reinit_alloc();
+
   while (ptr < limit) {
     assert (0 == memcmp(marker, ptr, 16));
     msg_length = getw16(ptr + 16);
@@ -62,10 +84,10 @@ int msg_parse(void * base, int64_t length) {
       parse_update(ptr+19, msg_length-19);
     ptr += msg_length;
     msg_count++;
+    // printf("%d FIB table size %d\n", msg_count, bigtable_index);
   };
 
   assert(ptr == limit);
-  reinit_alloc();
   return msg_count;
 };
 
@@ -76,10 +98,9 @@ int main(int argc, char **argv) {
   char *fname;
   void *buf;
   int64_t length;
-  int message_count, tmp, i;
+  int message_count, tmp, i, repeat;
   struct timespec tstart, tend;
   double duration;
-  int repeat = 100;
 
   fname = argv[1];
   fd = open(fname, O_RDONLY);
@@ -93,7 +114,13 @@ int main(int argc, char **argv) {
   buf = mmap(NULL, length, PROT_READ, MAP_PRIVATE | MAP_POPULATE, fd, 0);
   close(fd);
 
+  if (2<argc && 1 == sscanf(argv[2], "%d", &tmp))
+    repeat = tmp;
+  else
+    repeat = 100;
+
   init_alloc();
+  init_bigtable();
 
   tmp = clock_gettime(CLOCK_REALTIME, &tstart);
   for (i = 0 ; i < repeat ; i++)
@@ -106,4 +133,6 @@ int main(int argc, char **argv) {
   printf("msgs latency (nsec) = %f\n", duration / repeat / message_count  * 1000000000);
   printf("Gbytes/sec = %f\n", repeat * length / duration / 1000000000);
   printf("(average message size is %0.2f bytes)\n", (1.0 * length) / message_count);
+  printf("FIB table size %d\n", bigtable_index);
+  printf("ignored overlong prefixes: %d\n", too_long/repeat);
 };

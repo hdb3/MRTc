@@ -9,7 +9,7 @@
 
 #define CHUNKSIZE(L) ( 1 + (L - 1) / 8 )
 
-static inline uint64_t nrli_iter(void **p) {
+static inline uint64_t nlri_iter(void **p) {
   void *nlri;
   uint8_t length,i;
   uint32_t acc = 0;
@@ -25,7 +25,7 @@ static inline uint64_t nrli_iter(void **p) {
   return acc | ((uint64_t) length) << 32;
 };
 
-static inline uint64_t nrli_get(void *nlri) {
+static inline uint64_t nlri_get(void *nlri) {
   uint8_t length = *(uint8_t *) nlri;
   uint32_t acc = 0;
   uint8_t i;
