@@ -24,20 +24,19 @@ static inline void process_path_attribute_route(uint8_t type_code, void *p, uint
   case ORIGIN:
     route->tiebreak.origin = * (uint8_t *) p;
     break;
+
   case AS_PATH:
-/*
-    // assume that the as_PATH is a singleton AS_SEQUENCE
-    route->path_length = *(uint8_t *)(p + 1);
-    if (length > 2 + 4 * route->path_length) {
+    // assume to start that the as_PATH is a singleton AS_SEQUENCE
+    route->tiebreak.path_length = *(uint8_t *)(p + 1);
+    if (length > 2 + 4 * route->tiebreak.path_length) {
+    // the as_PATH is NOT a singleton AS_SEQUENCE
       // printf("complex AS_PATH: (%ld,%d) ", length, route->path_length);
-      // print_chunk(msg);
-      route->complex_path = 1;
+    } else {
+    // the as_PATH IS a singleton AS_SEQUENCE
+      assert(2 == *(uint8_t *)p);                // AS_SEQUENCE segment type == 2
+      assert(length >= 2 + 4 * route->tiebreak.path_length); // the test that the segment exactly fills the attribute
     };
-    assert(MAX_PATH_LENGTH >= route->path_length);
-    assert(2 == *(uint8_t *)p);                // AS_SEQUENCE segment type == 1
-    assert(length >= 2 + 4 * route->path_length); // the test that the segment exactly fills the attribute
-    memcpy(route->as_path, p + 2, length - 2);
-*/
+
     break;
 
   case NEXT_HOP:
