@@ -18,9 +18,30 @@
 #include "bgpupdate.c"
 #include "nlri2.h"
 
-static unsigned char marker[16] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+static inline void parse_update(void *p, uint16_t length) {
+  struct route *route; 
+  uint16_t route_length = length + sizeof(struct route);
 
-static int large_msg_count;
+  if (SMALL < route_length)
+    route = alloc_large();
+  else
+    route = alloc_small();
+
+  memcpy(route+sizeof(struct route),p,length);
+  route->update_length = length;
+
+  uint16_t withdraw_length = getw16(p);
+  uint16_t pathattributes_length = getw16(p + 2 + withdraw_length);
+  uint16_t nlri_length = length - withdraw_length - pathattributes_length - 4;
+  assert(length >= 4 + withdraw_length + pathattributes_length); // sanity check
+  void *withdrawn = p + 2;
+  void * path_attributes = p + 4 + withdraw_length;
+  void * nlri = p + 4 + withdraw_length + pathattributes_length;
+
+  parse_attributes(path_attributes,pathattributes_length,route);
+};
+
+static unsigned char marker[16] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 int msg_parse(void * base, int64_t length) {
 
@@ -28,7 +49,6 @@ int msg_parse(void * base, int64_t length) {
   uint8_t msg_type;
   uint16_t msg_length;
   int msg_count=0;
-  int _large_msg_count=0;
 
   ptr = base;
   limit = base + length;
@@ -37,26 +57,14 @@ int msg_parse(void * base, int64_t length) {
     assert (0 == memcmp(marker, ptr, 16));
     msg_length = getw16(ptr + 16);
     msg_type = getw8(ptr + 18);
-    uint16_t route_length = msg_length + sizeof(struct route) -16; // we store the route header and the body of the message
-                                                                   // but not the 16 byte marker
-    if (SMALL < route_length) {
-      _large_msg_count++;
-      msg = alloc_large();
-    } else {
-      msg = alloc_small();
-    };
-    // printf("msg %p ptr %p\n", msg, ptr);
-    parse_update(ptr+19, msg_length-19, (struct route *) msg);
-    memcpy(msg+sizeof(struct route),ptr+16,msg_length-16);
+    assert(2==msg_type); // this is an update parser, not a BGP FSM!!!!
+    if (msg_length > 23) // i.e., not an EOR
+      parse_update(ptr+19, msg_length-19);
     ptr += msg_length;
     msg_count++;
-
-    // printf("msg_count %d msg_length %d msg_type %d\n", msg_count, msg_length, msg_type);
   };
-  // printf("messages %d delta %ld\n", msg_count, limit - ptr);
-  // printf("bytes_left %p messages %p\n", ptr, limit);
+
   assert(ptr == limit);
-  large_msg_count = _large_msg_count;
   reinit_alloc();
   return msg_count;
 };
@@ -98,5 +106,4 @@ int main(int argc, char **argv) {
   printf("msgs latency (nsec) = %f\n", duration / repeat / message_count  * 1000000000);
   printf("Gbytes/sec = %f\n", repeat * length / duration / 1000000000);
   printf("(average message size is %0.2f bytes)\n", (1.0 * length) / message_count);
-  printf("large message count = %d\n",large_msg_count);
 };

@@ -11,10 +11,10 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include "getw.h"
+#include "aspath.c"
 #include "libupdates2.h"
 
-
-static inline void process_path_attribute_route(uint8_t type_code, void *p, uint16_t length, struct route *route ) {
+static inline void parse_attribute(uint8_t type_code, void *p, uint16_t length, struct route *route ) {
 
   if ((type_code > 64) && (ATTR_SET != type_code))
     printf("unexpected type code %d\n", type_code);
@@ -26,17 +26,7 @@ static inline void process_path_attribute_route(uint8_t type_code, void *p, uint
     break;
 
   case AS_PATH:
-    // assume to start that the as_PATH is a singleton AS_SEQUENCE
-    route->tiebreak.path_length = *(uint8_t *)(p + 1);
-    if (length > 2 + 4 * route->tiebreak.path_length) {
-    // the as_PATH is NOT a singleton AS_SEQUENCE
-      // printf("complex AS_PATH: (%ld,%d) ", length, route->path_length);
-    } else {
-    // the as_PATH IS a singleton AS_SEQUENCE
-      assert(2 == *(uint8_t *)p);                // AS_SEQUENCE segment type == 2
-      assert(length >= 2 + 4 * route->tiebreak.path_length); // the test that the segment exactly fills the attribute
-    };
-
+    route->tiebreak.path_length = as_path_count(p,length);
     break;
 
   case NEXT_HOP:
@@ -95,7 +85,7 @@ static inline void process_path_attribute_route(uint8_t type_code, void *p, uint
   }
 };
 
-static inline void process_path_attributes(void *p, uint16_t length, struct route *r) {
+static inline void parse_attributes(void *p, uint16_t length, struct route *r) {
   void *limit = p + length;
   uint8_t flags, type_code;
   uint16_t attr_length;
@@ -106,25 +96,8 @@ static inline void process_path_attributes(void *p, uint16_t length, struct rout
     attr_length = *(uint8_t *)p++;
     if (0x10 & flags)
       attr_length = attr_length << 8 | (*(uint8_t *)p++);
-    process_path_attribute_route(type_code, p, attr_length,r );
+    parse_attribute(type_code, p, attr_length,r );
     p += attr_length;
   } while (p < limit);
   assert(p == limit);
-};
-
-
-/*
- * design for basic update processing - just locate the sections
-*/
-static inline void parse_update(void *p, uint16_t length, struct route *r) {
-
-    uint16_t withdraw_length = getw16(p);
-    uint16_t pathattributes_length = getw16(p + 2 + withdraw_length);
-    uint16_t nlri_length = length - withdraw_length - pathattributes_length - 4;
-    assert(length >= 4 + withdraw_length + pathattributes_length); // sanity check
-    void *withdrawn = p + 2;
-    void * path_attributes = p + 4 + withdraw_length;
-    void * nlri = p + 4 + withdraw_length + pathattributes_length;
-
-    process_path_attributes(path_attributes,pathattributes_length,r);
 };
