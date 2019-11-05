@@ -47,7 +47,7 @@ int msg_parse(void * base, int64_t length) {
     };
     // printf("msg %p ptr %p\n", msg, ptr);
     parse_update(ptr+19, msg_length-19, (struct route *) msg);
-    // memcpy(msg+sizeof(struct route),ptr+16,msg_length-16);
+    memcpy(msg+sizeof(struct route),ptr+16,msg_length-16);
     ptr += msg_length;
     msg_count++;
 

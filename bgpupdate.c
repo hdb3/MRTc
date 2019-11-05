@@ -14,83 +14,65 @@
 #include "libupdates2.h"
 
 
-static inline void process_path_attribute_route(uint8_t type_code, void *p, uint16_t length, struct route *r ) {
+static inline void process_path_attribute_route(uint8_t type_code, void *p, uint16_t length, struct route *route ) {
 
-  if ((type_code < 64) || (ATTR_SET == type_code))
+  if ((type_code > 64) && (ATTR_SET != type_code))
     printf("unexpected type code %d\n", type_code);
   else
     switch (type_code) {
 
   case ORIGIN:
-    r->tiebreak.origin = * (uint8_t *) p;
+    route->tiebreak.origin = * (uint8_t *) p;
     break;
-/*
   case AS_PATH:
+/*
     // assume that the as_PATH is a singleton AS_SEQUENCE
     route->path_length = *(uint8_t *)(p + 1);
-    if (msg.length > 2 + 4 * route->path_length) {
-      // printf("complex AS_PATH: (%ld,%d) ", msg.length, route->path_length);
+    if (length > 2 + 4 * route->path_length) {
+      // printf("complex AS_PATH: (%ld,%d) ", length, route->path_length);
       // print_chunk(msg);
       route->complex_path = 1;
     };
     assert(MAX_PATH_LENGTH >= route->path_length);
     assert(2 == *(uint8_t *)p);                // AS_SEQUENCE segment type == 1
-    assert(msg.length >= 2 + 4 * route->path_length); // the test that the segment exactly fills the attribute
-    memcpy(route->as_path, p + 2, msg.length - 2);
+    assert(length >= 2 + 4 * route->path_length); // the test that the segment exactly fills the attribute
+    memcpy(route->as_path, p + 2, length - 2);
+*/
     break;
 
   case NEXT_HOP:
-    assert(4 == msg.length);
-    route->next_hop = *(uint32_t *)p;
+    assert(4 == length);
+    // route->next_hop = *(uint32_t *)p;
     break;
 
   case MULTI_EXIT_DISC:
-    assert(4 == msg.length);
-    route->med = *(uint32_t *)p;
+    assert(4 == length);
+    route->tiebreak.med = *(uint32_t *)p;
     break;
 
   case LOCAL_PREF:
-    assert(4 == msg.length);
-    route->local_pref = *(uint32_t *)p;
+    assert(4 == length);
+    route->tiebreak.local_pref = *(uint32_t *)p;
     break;
 
   case COMMUNITY:
-    route->communities_length = msg.length >> 2; // standard community is 4 bytes
-    assert(0 == msg.length % 4);
-    // printf("COMMUNITY: ");
-    // print_chunk(msg);
-    if (MAX_COMMUNITY_LENGTH < route->communities_length) {
-      printf("oversize COMMUNITY: (%d) ", route->communities_length);
-      print_chunk(msg);
-    } else {
-      memcpy(route->communities, p, msg.length);
-    };
-    // assert(MAX_COMMUNITY_LENGTH >= route->communities_length);
-    // memcpy(route->communities, p, msg.length);
+    assert(0 == length % 4);
     break;
 
   case EXTENDED_COMMUNITIES:
-    route->extended_communities_length = msg.length >> 3; // extended community is 8 bytes
-    assert(0 == msg.length % 8);
-    assert(MAX_EXTENDED_COMMUNITY_LENGTH >= route->extended_communities_length);
-    memcpy(route->extended_communities, p, msg.length);
+    assert(0 == length % 8);
     break;
 
   case LARGE_COMMUNITY:
-    route->large_communities_length = msg.length / 12; // large community is 12 bytes
-    assert(0 == msg.length % 12);
-    assert(MAX_LARGE_COMMUNITY_LENGTH >= route->large_communities_length);
-    memcpy(route->large_communities, p, msg.length);
+    assert(0 == length % 12);
     break;
 
   case ATOMIC_AGGREGATE:
-    assert(0 == msg.length);
+    assert(0 == length);
     break;
 
   case AGGREGATOR:
-    // printf("AGGREGATOR: ");
-    // print_chunk(msg);
-    assert(8 == msg.length); // this the AS4 case - otherwise would be 6 not 8
+    assert(8 == length); // this the AS4 case - otherwise would be 6 not 8
     break;
 
   case MP_REACH_NLRI:
@@ -100,17 +82,15 @@ static inline void process_path_attribute_route(uint8_t type_code, void *p, uint
     break;
 
   case AS_PATHLIMIT:
-    assert(5 == msg.length);
+    assert(5 == length);
     break;
 
   case CONNECTOR:
-    // printf("CONNECTOR %ld\n", msg.length);
-    // assert(6 == msg.length);
     break;
 
   case ATTR_SET:
     break;
-*/
+
   default:
     printf("unexpected attribute, type code =%d\n", type_code);
   }
