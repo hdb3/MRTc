@@ -15,11 +15,11 @@ void reinit_alloc_small() {
 
 void init_alloc_small() {
   small_buf = mmap(NULL, SMALL * SMALL_MAX, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  assert (MAP_FAILED != small_buf);
+  assert(MAP_FAILED != small_buf);
   // printf("small_buf %p\n", small_buf);
 };
 
-static inline void * alloc_small(){
+static inline void *alloc_small() {
   // assert (small_index < SMALL_MAX);
   return small_buf + SMALL * (small_index++);
 };
@@ -36,11 +36,11 @@ void reinit_alloc_large() {
 
 void init_alloc_large() {
   large_buf = mmap(NULL, LARGE * LARGE_MAX, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  assert (MAP_FAILED != large_buf);
+  assert(MAP_FAILED != large_buf);
   // printf("large_buf %p\n", large_buf);
 };
 
-static inline void * alloc_large(){
+static inline void *alloc_large() {
   // assert (large_index < LARGE_MAX);
   return large_buf + LARGE * (large_index++);
 };
@@ -48,7 +48,7 @@ static inline void * alloc_large(){
 void init_alloc() {
   init_alloc_large();
   init_alloc_small();
- };
+};
 
 void reinit_alloc() {
   reinit_alloc_large();

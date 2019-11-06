@@ -1,11 +1,11 @@
+#include <arpa/inet.h>
 #include <assert.h>
 #include <stddef.h>
-#include <stdio.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
-#include <stdlib.h>
-#include <arpa/inet.h>
 
 /*
  *  explanation:
@@ -28,14 +28,14 @@
 */
 
 #define BIG 1000000
-#define RIBSIZE ( 2 << 25 )
-static inline uint32_t encode (uint8_t l, uint32_t a) {
-  assert(l<25);
-  return (uint32_t)(0x100000000 | (uint64_t)a) >> (32-l);
+#define RIBSIZE (2 << 25)
+static inline uint32_t encode(uint8_t l, uint32_t a) {
+  assert(l < 25);
+  return (uint32_t)(0x100000000 | (uint64_t)a) >> (32 - l);
 };
 
-static inline uint32_t encode64 (uint64_t la) {
-  return encode ( la >> 32 , la & 0xffffffff);
+static inline uint32_t encode64(uint64_t la) {
+  return encode(la >> 32, la & 0xffffffff);
 };
 
 static uint32_t *RIB;
@@ -48,27 +48,27 @@ void reinit_bigtable() {
 
 void init_bigtable() {
   bigtable_index = 0;
-  RIB = calloc(4,RIBSIZE);
-  bigtable = calloc(4,BIG);
+  RIB = calloc(4, RIBSIZE);
+  bigtable = calloc(4, BIG);
 };
 
-static inline uint32_t lookup_bigtable (uint8_t l, uint32_t address) {
+static inline uint32_t lookup_bigtable(uint8_t l, uint32_t address) {
   uint32_t index = encode(l, address);
-  assert(index<RIBSIZE);
+  assert(index < RIBSIZE);
   uint32_t btindex = RIB[index];
   if (0 == btindex) {
     btindex = bigtable_index++;
     RIB[index] = btindex;
-    bigtable[btindex]=index;
+    bigtable[btindex] = index;
   };
   return btindex;
 };
 
-static inline uint32_t lookup_bigtable64 (uint64_t la) {
+static inline uint32_t lookup_bigtable64(uint64_t la) {
   if (25 > (la >> 32))
-  return lookup_bigtable(la >> 32, la & 0xffffffff);
+    return lookup_bigtable(la >> 32, la & 0xffffffff);
   else {
-    // printf("ignored %s/%d\n", inet_ntoa((struct in_addr){la & 0xffffffff}),(uint32_t)(la >> 32));		    
+    // printf("ignored %s/%d\n", inet_ntoa((struct in_addr){la & 0xffffffff}),(uint32_t)(la >> 32));
     return BIG;
   };
- };
+};
