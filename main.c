@@ -1,6 +1,7 @@
 #include "stdint.h"
 #include "stdio.h"
 #include "stdlib.h"
+#include <string.h>
 #include <arpa/inet.h>
 #include <assert.h>
 #include <fcntl.h>
@@ -68,7 +69,7 @@ struct msg_list_item {
   struct chunk msg;
 };
 
-struct chunk map_mrt_file(char *fname) {
+struct chunk _map_mrt_file(char *fname) {
   void *buf = NULL;
   struct stat sb;
   int fd = open(fname, O_RDONLY);
@@ -109,7 +110,13 @@ struct msg_list_item *mrt_parse(struct chunk buf, struct stats_bgp4mp *sp) {
     msg_type = getw16(buf.data + 4);
     msg_subtype = getw16(buf.data + 6);
     msg_length = getw32(buf.data + 8);
-    assert(buf.length >= MIN_MRT_LENGTH + msg_length);
+    if (buf.length >= MIN_MRT_LENGTH + msg_length);
+    else {
+      printf("** exception !(buf.length >= MIN_MRT_LENGTH + msg_length\n");
+      printf("** buf.length= %d MIN_MRT_LENGTH + msg_length=%d msg# %d\n", buf.length , MIN_MRT_LENGTH + msg_length, sp->mrt_count);
+      break;
+      assert(buf.length >= MIN_MRT_LENGTH + msg_length);
+    };
     if (msg_type != BGP4MP) {
       printf("wrong msg_type %d/%d\n", msg_type, msg_subtype);
       exit(1);
@@ -196,12 +203,23 @@ int process_bgp_message(struct chunk msg, struct stats_bgp4mp *sp) {
   return is_update;
 };
 
-void write_msgs(const int fd, struct msg_list_item *list) {
+#define WRITEBUFSIZE (100000000)
+void write_updates(const int fd, struct msg_list_item *list) {
+
+  void *buf = malloc(WRITEBUFSIZE);
+  int tmp, bufptr = 0;
 
   while (list != NULL) {
-    int tmp = write(fd, list->msg.data, list->msg.length);
+    if (WRITEBUFSIZE < bufptr + list->msg.length) {
+      tmp = write(fd, buf, bufptr);
+      bufptr = 0;
+    };
+    memcpy(buf+bufptr,list->msg.data, list->msg.length);
+    bufptr += list->msg.length;
     list = list->next;
   };
+  if (bufptr > 0)
+    tmp = write(fd, buf, bufptr);
 };
 
 void use_msgs(char *fname, struct msg_list_item *list) {
@@ -245,7 +263,7 @@ int main(int argc, char **argv) {
   printf("MRTc\n");
   struct stats_bgp4mp *sp = calloc(1, sizeof(*sp));
 
-  buf = map_mrt_file(argv[1]);
+  buf = _map_mrt_file(argv[1]);
   msg_list = mrt_parse(buf, sp);
   use_msgs(argv[1], msg_list);
   msg_list = filter_msgs(msg_list, sp);
@@ -253,7 +271,7 @@ int main(int argc, char **argv) {
   report_stats_bgp4mp(sp);
   if (argc > 2) {
     int fd = creat(argv[2], 00664);
-    write_msgs(fd, msg_list);
+    write_updates(fd, msg_list);
     close(fd);
   };
 };
