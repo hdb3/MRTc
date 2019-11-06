@@ -6,3 +6,4 @@ void unmap_mrt_file(struct chunk ch);
 struct chunk map_mrt_file(char *fname);
 char *show_mrt_peer_record(struct mrt_peer_record *peer);
 void print_mrt_peer_record(struct mrt_peer_record *peer);
+void write_msgs(const char *fname, struct update_list_item *list);

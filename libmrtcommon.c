@@ -28,6 +28,27 @@ void free_update_list(struct update_list_item *head) {
   };
 };
 
+#define WRITEBUFSIZE (100000000)
+
+void write_msgs(const char *fname, struct update_list_item *list) {
+
+  void *buf = malloc(WRITEBUFSIZE);
+  int tmp, bufptr = 0;
+  int fd = creat(fname, 00664);
+
+  while (list != NULL) {
+    if (WRITEBUFSIZE < bufptr + list->msg.length) {
+      tmp = write(fd, buf, bufptr);
+      bufptr = 0;
+    };
+    memcpy(buf + bufptr, list->msg.data, list->msg.length);
+    bufptr += list->msg.length;
+    list = list->next;
+  };
+  if (bufptr > 0)
+    tmp = write(fd, buf, bufptr);
+};
+
 struct chunk block_builder(struct update_list_item *update_list) {
   long int length = 0;
   struct update_list_item *p;
