@@ -42,8 +42,10 @@ static inline void parse_update(void *p, uint16_t length) {
   void *path_attributes = p + 4 + withdraw_length;
   void *nlri = p + 4 + withdraw_length + pathattributes_length;
 
-  parse_attributes(path_attributes, pathattributes_length, route);
-  if (0 < nlri_length) {
+  if (pathattributes_length)
+    parse_attributes(path_attributes, pathattributes_length, route);
+
+  if (nlri_length) {
     void *nlrip = nlri;
     uint64_t address;
     while (nlrip < nlri + nlri_length) {
@@ -52,7 +54,7 @@ static inline void parse_update(void *p, uint16_t length) {
         too_long++;
     };
   };
-  if (0 < withdraw_length) {
+  if (withdraw_length) {
     void *withdrawp = withdrawn;
     uint64_t address;
     while (withdrawp < withdrawn + withdraw_length) {
@@ -99,8 +101,8 @@ int main(int argc, char **argv) {
   int fd;
   char *fname;
   void *buf;
-  int64_t length;
-  int message_count, tmp, i, repeat;
+  int64_t length, message_count;
+  int tmp, i, repeat;
   struct timespec tstart, tend;
   double duration;
 
@@ -129,7 +131,7 @@ int main(int argc, char **argv) {
     message_count = msg_parse(buf, length);
   tmp = clock_gettime(CLOCK_REALTIME, &tend);
   duration = timespec_to_ms(timespec_sub(tend, tstart)) / 1000.0;
-  printf("read %d messages\n", message_count);
+  printf("read %ld messages\n", message_count);
   printf("complete in %f\n", duration);
   printf("M msgs/sec = %f\n", repeat * message_count / duration / 1000000);
   printf("msgs latency (nsec) = %f\n", duration / repeat / message_count * 1000000000);

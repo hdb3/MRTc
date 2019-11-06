@@ -7,7 +7,7 @@ int small_index = 0;
 void *small_buf;
 #define SMALL 256LL
 // SMALL_MAX is 10M
-#define SMALL_MAX 10000000LL
+#define SMALL_MAX 100000000LL
 
 void reinit_alloc_small() {
   small_index = 0;
@@ -20,7 +20,7 @@ void init_alloc_small() {
 };
 
 static inline void *alloc_small() {
-  // assert (small_index < SMALL_MAX);
+  assert (small_index < SMALL_MAX);
   return small_buf + SMALL * (small_index++);
 };
 
@@ -41,7 +41,7 @@ void init_alloc_large() {
 };
 
 static inline void *alloc_large() {
-  // assert (large_index < LARGE_MAX);
+  assert (large_index < LARGE_MAX);
   return large_buf + LARGE * (large_index++);
 };
 

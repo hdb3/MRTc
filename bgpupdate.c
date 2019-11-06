@@ -1,7 +1,3 @@
-#define _GNU_SOURCE
-#include "aspath.c"
-#include "getw.h"
-#include "libupdates2.h"
 #include <arpa/inet.h>
 #include <assert.h>
 #include <fcntl.h>
@@ -13,6 +9,10 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#include "aspath.c"
+#include "getw.h"
+#include "libupdates2.h"
 
 static inline void parse_attribute(uint8_t type_code, void *p, uint16_t length, struct route *route) {
 
