@@ -324,6 +324,7 @@ static inline int process_bgp_message(struct chunk msg, struct bgp4mp_bgp_stats 
     break;
 
   case 2: { // Update cases - EOR/Withdraw/Update
+    is_update = 1;
 #ifndef NOUPDATE
     uint16_t withdraw_length = getw16(msg.data + 19);
     uint16_t pathattributes_length = getw16(msg.data + 21 + withdraw_length);
@@ -479,15 +480,19 @@ struct mrt *mrt_updates_parse(struct chunk buf) {
         mrt->bgp4mp.mrt_bgp_msg_count++;
 
         int bgp_msg_status = process_bgp_message(msg_chunk, &pp->bgp4mp.bgp_stats);
+// UPDATE_LIST_HOME is either 'pp or 'mrt'.  'pp' saves the updates as separate lists, mrt as a global list
+#define UPDATE_LIST_HOME mrt
+#define ULH UPDATE_LIST_HOME
         if (bgp_msg_status && BUILD_UPDATE_LIST) { // we only want update messages in the list, so skip if not Update
+          // printf("adding in list\n");
           struct update_list_item *itemp = calloc(1, sizeof(struct update_list_item));
           itemp->msg = msg_chunk;
-          if (NULL == pp->bgp4mp.update_list_head)
-            pp->bgp4mp.update_list_head = itemp;
+          if (NULL == ULH->bgp4mp.update_list_head)
+            ULH->bgp4mp.update_list_head = itemp;
           else
-            pp->bgp4mp.update_list_tail->next = itemp;
-          pp->bgp4mp.update_list_tail = itemp;
-          pp->bgp4mp.update_count++;
+            ULH->bgp4mp.update_list_tail->next = itemp;
+          ULH->bgp4mp.update_list_tail = itemp;
+          ULH->bgp4mp.update_count++;
         };
       } else if (msg_subtype == BGP4MP_STATE_CHANGE_AS4) {
         mrt->bgp4mp.state_changes++;

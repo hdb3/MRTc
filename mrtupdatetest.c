@@ -26,9 +26,13 @@ int main(int argc, char **argv) {
   updatedump = mrt_updates_parse(buf);
   gettime(&tend);
   tdelta = timespec_sub(tend, tstart);
-  mrt_summary(updatedump);
-  report_mrt_bgp4mp(updatedump);
+  // mrt_summary(updatedump);
+  // report_mrt_bgp4mp(updatedump);
   printf("first parse complete in %ld\n", timespec_to_ms(tdelta));
+  if (argc > 2 && BUILD_UPDATE_LIST) {
+    write_msgs(argv[2], updatedump->bgp4mp.update_list_head);
+    printf("update list has %d updates, written to %s\n", updatedump->bgp4mp.update_count,argv[2]);
+  };
 #ifndef CDFFILE
   for (n = 0; n < LIMIT; n++) {
     gettime(&tstart);
