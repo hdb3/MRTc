@@ -1,3 +1,4 @@
+#include "getw.h"
 #include <arpa/inet.h>
 #include <assert.h>
 #include <stddef.h>
@@ -28,10 +29,17 @@
 */
 
 #define BIG 1000000
+#define TOO_BIG (BIG + 1)
 #define RIBSIZE (2 << 25)
 static inline uint32_t encode(uint8_t l, uint32_t a) {
   assert(l < 25);
-  return (uint32_t)(0x100000000 | (uint64_t)a) >> (32 - l);
+  return (uint32_t)((uint64_t)(0x100000000LL | (uint64_t)a) >> (32 - l));
+};
+
+static inline uint64_t decode(uint32_t ref) {
+  uint8_t l = 31 - __builtin_clz(ref);
+  uint32_t a = ref << (32 - l);
+  return (((uint64_t)l) << 32) | ((uint64_t)a);
 };
 
 static inline uint32_t encode64(uint64_t la) {
@@ -44,12 +52,24 @@ static uint32_t bigtable_index = 0;
 
 void reinit_bigtable() {
   bigtable_index = 0;
+  memset(RIB, 0, 4 * RIBSIZE);
+  memset(bigtable, 0, 4 * BIG);
 };
 
 void init_bigtable() {
   bigtable_index = 0;
   RIB = calloc(4, RIBSIZE);
   bigtable = calloc(4, BIG);
+};
+
+void dump_bigtable() {
+
+  uint32_t btindex;
+  uint64_t la;
+  for (btindex = 0; btindex < bigtable_index; btindex++) {
+    la = decode(bigtable[btindex]);
+    printf("%6d : %s/%d\n", btindex, inet_ntoa((struct in_addr){la & 0xffffffff}), (uint32_t)(la >> 32));
+  };
 };
 
 static inline uint32_t lookup_bigtable(uint8_t l, uint32_t address) {
@@ -69,6 +89,6 @@ static inline uint32_t lookup_bigtable64(uint64_t la) {
     return lookup_bigtable(la >> 32, la & 0xffffffff);
   else {
     // printf("ignored %s/%d\n", inet_ntoa((struct in_addr){la & 0xffffffff}),(uint32_t)(la >> 32));
-    return BIG;
+    return TOO_BIG;
   };
 };
