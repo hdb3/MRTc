@@ -41,6 +41,7 @@ static inline void *alloc_small() {
 };
 
 static inline void dalloc_small(void *p) {
+  // printf("dalloc_small %p\n",p);
   * (void **) p = *small_free;
   small_free = p;
 };
@@ -112,3 +113,8 @@ static inline void *alloc(size_t sz) {
   else
     return alloc_small();
 };
+
+void report_route_table () {
+  printf("route table size = %d (%d/%d)\n", small_index + large_index, small_index, large_index);
+};
+

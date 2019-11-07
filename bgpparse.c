@@ -22,13 +22,31 @@
 
 int too_long = 0;
 int msg_max;
-struct route *tmp_route;
+// struct route *tmp_route;
+void **adj_rib_in=NULL;
+
+static inline void *alloc_adj_rib_in() {
+  return calloc(BIG, sizeof(void*));
+};
+
+static inline void zero_adj_rib_in(void*p) {
+  memset(p,0,BIG*sizeof(void*));
+};
+
+static inline void update_adj_rib_in(uint32_t address, struct route *route) {
+
+  void * old_entry = adj_rib_in[address];
+  // printf("old_entry: %p, new_entry: %p, address: %d\n", old_entry, route, address);
+  adj_rib_in[address] = route;
+  if (old_entry)
+    dalloc(old_entry);
+};
 
 static inline void parse_update(void *p, uint16_t length) {
   struct route *route;
 
-  route = tmp_route;
-  // route = alloc(length + sizeof(struct route));
+  // route = tmp_route;
+  route = alloc(length + sizeof(struct route));
   memset(route, 0, sizeof(struct route));
   memcpy(route + sizeof(struct route), p, length);
   route->update_length = length;
@@ -49,8 +67,11 @@ static inline void parse_update(void *p, uint16_t length) {
     uint64_t address;
     while (nlrip < nlri + nlri_length) {
       address = nlri_iter(&nlrip);
-      if (TOO_BIG == lookup_RIB64(address))
+      uint32_t addrref = lookup_RIB64(address);
+      if (TOO_BIG == addrref)
         too_long++;
+      else
+        update_adj_rib_in(addrref,route);
     };
   };
   if (withdraw_length) {
@@ -58,8 +79,11 @@ static inline void parse_update(void *p, uint16_t length) {
     uint64_t address;
     while (withdrawp < withdrawn + withdraw_length) {
       address = nlri_iter(&withdrawp);
-      if (TOO_BIG == lookup_RIB64(address))
+      uint32_t addrref = lookup_RIB64(address);
+      if (TOO_BIG == addrref)
         too_long++;
+      else
+        update_adj_rib_in(address,NULL);
     };
   };
 };
@@ -77,6 +101,7 @@ int msg_parse(void *base, int64_t length) {
 
   reinit_bigtable();
   reinit_alloc();
+  zero_adj_rib_in(adj_rib_in);
 
   while (ptr < limit && ( msg_max == 0 || msg_count < msg_max)) {
     assert(0 == memcmp(marker, ptr, 16));
@@ -128,7 +153,8 @@ int main(int argc, char **argv) {
 
   init_alloc();
   init_bigtable();
-  tmp_route = alloc(4096 + sizeof(struct route));
+  adj_rib_in = alloc_adj_rib_in();
+  // tmp_route = alloc(4096 + sizeof(struct route));
 
   tmp = clock_gettime(CLOCK_REALTIME, &tstart);
   tmp = msg_parse(buf, length);
@@ -144,5 +170,6 @@ int main(int argc, char **argv) {
   printf("Gbytes/sec = %f\n", repeat * length / duration / 1000000000);
   printf("(average message size is %0.2f bytes)\n", (1.0 * length) / message_count);
   printf("FIB table size %d\n", bigtable_index);
+  report_route_table();
   printf("ignored overlong prefixes: %d\n", too_long / repeat);
 };
