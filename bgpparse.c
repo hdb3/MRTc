@@ -21,16 +21,15 @@
 #include "timespec.h"
 
 int too_long = 0;
+int msg_max;
+struct route *tmp_route;
 
 static inline void parse_update(void *p, uint16_t length) {
   struct route *route;
-  uint16_t route_length = length + sizeof(struct route);
 
-  if (SMALL < route_length)
-    route = alloc_large();
-  else
-    route = alloc_small();
-
+  route = tmp_route;
+  // route = alloc(length + sizeof(struct route));
+  memset(route, 0, sizeof(struct route));
   memcpy(route + sizeof(struct route), p, length);
   route->update_length = length;
 
@@ -50,7 +49,7 @@ static inline void parse_update(void *p, uint16_t length) {
     uint64_t address;
     while (nlrip < nlri + nlri_length) {
       address = nlri_iter(&nlrip);
-      if (BIG == lookup_bigtable64(address))
+      if (TOO_BIG == lookup_RIB64(address))
         too_long++;
     };
   };
@@ -59,7 +58,7 @@ static inline void parse_update(void *p, uint16_t length) {
     uint64_t address;
     while (withdrawp < withdrawn + withdraw_length) {
       address = nlri_iter(&withdrawp);
-      if (BIG == lookup_bigtable64(address))
+      if (TOO_BIG == lookup_RIB64(address))
         too_long++;
     };
   };
@@ -79,7 +78,7 @@ int msg_parse(void *base, int64_t length) {
   reinit_bigtable();
   reinit_alloc();
 
-  while (ptr < limit) {
+  while (ptr < limit && ( msg_max == 0 || msg_count < msg_max)) {
     assert(0 == memcmp(marker, ptr, 16));
     msg_length = getw16(ptr + 16);
     msg_type = getw8(ptr + 18);
@@ -88,10 +87,9 @@ int msg_parse(void *base, int64_t length) {
       parse_update(ptr + 19, msg_length - 19);
     ptr += msg_length;
     msg_count++;
-    // printf("%d FIB table size %d\n", msg_count, bigtable_index);
   };
 
-  assert(ptr == limit);
+  assert(msg_count == msg_max || ptr == limit);
   return msg_count;
 };
 
@@ -123,10 +121,18 @@ int main(int argc, char **argv) {
   else
     repeat = 100;
 
+  if (3 < argc && 1 == sscanf(argv[3], "%d", &tmp))
+    msg_max = tmp;
+  else
+    msg_max = 0;
+
   init_alloc();
   init_bigtable();
+  tmp_route = alloc(4096 + sizeof(struct route));
 
   tmp = clock_gettime(CLOCK_REALTIME, &tstart);
+  tmp = msg_parse(buf, length);
+  // dump_bigtable();
   for (i = 0; i < repeat; i++)
     message_count = msg_parse(buf, length);
   tmp = clock_gettime(CLOCK_REALTIME, &tend);

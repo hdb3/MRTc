@@ -18,3 +18,4 @@ gcc -DNOSTATS -DNOPPA -g -O2 -o mrtupdatetest.NOSTATSORPPA mrtupdatetest.c $LIBS
 gcc -g -O2 -o mrttabledumptest mrttabledumptest.c $LIBS
 gcc -g -O2 -o main main.c $LIBS
 gcc -g -O2 -o bgpparse bgpparse.c timespec.c
+gcc -g -O2 -o bigtabletest bigtabletest.c timespec.c
