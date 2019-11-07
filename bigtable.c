@@ -1,4 +1,3 @@
-#include "getw.h"
 #include <arpa/inet.h>
 #include <assert.h>
 #include <stddef.h>
@@ -7,6 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
+
+#include "getw.h"
 
 /*
  *  explanation:
@@ -27,6 +28,15 @@
  * ...00000001(24x) -> 1(24x)
  * ...00000001(23x) -> 01(23x)
 */
+
+
+void print_prefix(uint8_t l, uint32_t address) {
+  printf("%s/%d", inet_ntoa((struct in_addr){__bswap_32(address)}),l);
+};
+
+void print_prefix64(uint64_t la) {
+  print_prefix(la & 0xffffffff, la >> 32);
+};
 
 #define BIG 1000000
 #define TOO_BIG (BIG + 1)
@@ -72,7 +82,18 @@ void dump_bigtable() {
   };
 };
 
-static inline uint32_t lookup_bigtable(uint8_t l, uint32_t address) {
+static inline uint64_t lookup_bigtable(uint32_t index) {
+  if (index < bigtable_index || TOO_BIG == index)
+    ;
+  else {
+    printf("** index=%d limit=%d _msg_count=%d\n", index, bigtable_index, _msg_count);
+    assert(index < bigtable_index || TOO_BIG == index);
+  };
+  return decode(bigtable[index]);
+};
+
+static inline uint32_t lookup_RIB(uint8_t l, uint32_t address) {
+
   uint32_t index = encode(l, address);
   assert(index < RIBSIZE);
   uint32_t btindex = RIB[index];
@@ -84,11 +105,10 @@ static inline uint32_t lookup_bigtable(uint8_t l, uint32_t address) {
   return btindex;
 };
 
-static inline uint32_t lookup_bigtable64(uint64_t la) {
+static inline uint32_t lookup_RIB64(uint64_t la) {
   if (25 > (la >> 32))
-    return lookup_bigtable(la >> 32, la & 0xffffffff);
+    return lookup_RIB(la >> 32, la & 0xffffffff);
   else {
-    // printf("ignored %s/%d\n", inet_ntoa((struct in_addr){la & 0xffffffff}),(uint32_t)(la >> 32));
     return TOO_BIG;
   };
 };
