@@ -20,7 +20,7 @@ static inline uint64_t nlri_iter(void **p) {
   for (i = 0; i < CHUNKSIZE(length); i++)
     acc = (acc << 8) + *(uint8_t *)(nlri++);
   // apply the remaining shift and byteswap for canonical form
-  acc = __bswap_32(acc) << (8 * (4 - CHUNKSIZE(length)));
+  acc = acc << (8 * (4 - CHUNKSIZE(length)));
   *p = nlri;
   return acc | ((uint64_t)length) << 32;
 };
@@ -33,7 +33,7 @@ static inline uint64_t nlri_get(void *nlri) {
   for (i = 0; i < CHUNKSIZE(length); i++)
     acc = (acc << 8) + *(uint8_t *)(nlri + 1 + i);
   // apply the remaining shift and byteswap for canonical form
-  acc = __bswap_32(acc) << (8 * (4 - CHUNKSIZE(length)));
+  acc = acc << (8 * (4 - CHUNKSIZE(length)));
   return acc | ((uint64_t)length) << 32;
 };
 
@@ -60,7 +60,7 @@ static inline int nlri_list(void *nlris, uint32_t *pfxs, int limit) {
     for (i = 0; i < CHUNKSIZE(length); i++)
       acc = (acc << 8) + *(uint8_t *)(p++);
     // apply the remaining shift and byteswap for canonical form
-    acc = __bswap_32(acc) << (8 * (4 - CHUNKSIZE(length)));
+    acc = acc << (8 * (4 - CHUNKSIZE(length)));
     pfxs[pfxc++] = acc | ((uint64_t)length) << 32;
   };
   return pfxc;
