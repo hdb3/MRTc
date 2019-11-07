@@ -20,6 +20,7 @@ int main(int argc, char **argv) {
   fflush(stdout);
   int removed = trim_mrt_tabledump_size(mrt, MIN_TABLE_SIZE);
   printf(" - removed %d\n", removed);
+  report_mrt_tabledump(mrt);
   build_mrt_tabledump_updates(mrt);
   unmap_mrt_file(buf);
   if (3 == argc) {

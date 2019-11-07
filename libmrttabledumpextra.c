@@ -51,7 +51,7 @@ void sort_peer_table(struct mrt *tabledump) {
  */
 
 void report_mrt_tabledump(struct mrt *mrt) {
-  int i, max_entry_count, min_entry_count, non_zero_entry_counts;
+  int i, max_entry_peer, max_entry_count, min_entry_count, non_zero_entry_counts;
   struct mrt_tabledump_peer_record *rib = NULL;
   assert(TYPE_TABLEDUMP == mrt->type);
   printf("\nreport_mrt_tabledump\n");
@@ -68,6 +68,7 @@ void report_mrt_tabledump(struct mrt *mrt) {
 
   min_entry_count = mrt->peer_table[0].rib.count;
   max_entry_count = 0;
+  max_entry_peer = 0;
   non_zero_entry_counts = 0;
   for (i = 0; i < mrt->peer_count; i++) {
     rib = &mrt->peer_table[i].rib;
@@ -75,9 +76,10 @@ void report_mrt_tabledump(struct mrt *mrt) {
       non_zero_entry_counts++;
     };
     min_entry_count = min_entry_count > rib->count ? rib->count : min_entry_count;
+    max_entry_peer = max_entry_count < rib->count ? i : max_entry_peer;
     max_entry_count = max_entry_count < rib->count ? rib->count : max_entry_count;
   };
-  printf("report_mrt_tabledump: largest table size: %d\n", max_entry_count);
+  printf("report_mrt_tabledump: largest table size: %d (@%d)\n", max_entry_count, max_entry_peer);
   printf("report_mrt_tabledump: smallest table size: %d\n", min_entry_count);
   printf("report_mrt_tabledump: non empty tables: %d\n", non_zero_entry_counts);
 };
