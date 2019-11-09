@@ -12,8 +12,10 @@ struct tiebreak {
 };
 
 struct route {
-  struct tiebreak tiebreak;
+  uint64_t unique;
+  uint16_t use_count;
   uint16_t update_length;
+  struct tiebreak tiebreak;
   /*
   struct offsets offsets {
     uint8_t origin;

@@ -35,7 +35,7 @@ void print_prefix(uint8_t l, uint32_t address) {
 };
 
 void print_prefix64(uint64_t la) {
-  print_prefix(la & 0xffffffff, la >> 32);
+  print_prefix(la >> 32, la & 0xffffffff);
 };
 
 #define BIG 1000000

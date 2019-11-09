@@ -21,9 +21,10 @@
 #include "timespec.h"
 
 int too_long = 0;
-int msg_max;
-// struct route *tmp_route;
-void **adj_rib_in=NULL;
+uint64_t unique = 0;
+uint64_t msg_max;
+uint64_t consumed=0;
+struct route **adj_rib_in=NULL;
 
 static inline void *alloc_adj_rib_in() {
   return calloc(BIG, sizeof(void*));
@@ -35,21 +36,29 @@ static inline void zero_adj_rib_in(void*p) {
 
 static inline void update_adj_rib_in(uint32_t address, struct route *route) {
 
-  void * old_entry = adj_rib_in[address];
-  // printf("old_entry: %p, new_entry: %p, address: %d\n", old_entry, route, address);
+/*
+  print_prefix64(lookup_bigtable(address));
+  if (route)
+    printf(" route %ld\n",route->unique);
+  else
+    printf(" route (nil)\n");
+*/
+  struct route * old_route = adj_rib_in[address];
   adj_rib_in[address] = route;
-  if (old_entry)
-    dalloc(old_entry);
+  if (route) {
+    route->use_count++;
+  };
+  if (old_route) {
+    old_route->use_count--;
+    if (0 == old_route->use_count)
+      dalloc(old_route);
+  };
 };
 
 static inline void parse_update(void *p, uint16_t length) {
-  struct route *route;
 
-  // route = tmp_route;
-  route = alloc(length + sizeof(struct route));
-  memset(route, 0, sizeof(struct route));
-  memcpy(route + sizeof(struct route), p, length);
-  route->update_length = length;
+  struct route *route = NULL;
+  uint64_t msg_count = 0;
 
   uint16_t withdraw_length = getw16(p);
   uint16_t pathattributes_length = getw16(p + 2 + withdraw_length);
@@ -59,21 +68,29 @@ static inline void parse_update(void *p, uint16_t length) {
   void *path_attributes = p + 4 + withdraw_length;
   void *nlri = p + 4 + withdraw_length + pathattributes_length;
 
-  if (pathattributes_length)
+  if (pathattributes_length && nlri_length) {
+    route = alloc(length + sizeof(struct route));
+    memset(route, 0, sizeof(struct route));
+    // printf("msg count=%-8ld  rte count=%-8ld  length=%4d\r",msg_count,unique,length);
+    memcpy((void*)route + sizeof(struct route), p, length);
+    route->update_length = length;
+    route->unique = unique++;
     parse_attributes(path_attributes, pathattributes_length, route);
+  };
 
   if (nlri_length) {
     void *nlrip = nlri;
-    uint64_t address;
+    uint64_t prefix;
     while (nlrip < nlri + nlri_length) {
-      address = nlri_iter(&nlrip);
-      uint32_t addrref = lookup_RIB64(address);
+      prefix = nlri_iter(&nlrip);
+      uint32_t addrref = lookup_RIB64(prefix);
       if (TOO_BIG == addrref)
         too_long++;
       else
         update_adj_rib_in(addrref,route);
     };
   };
+
   if (withdraw_length) {
     void *withdrawp = withdrawn;
     uint64_t address;
@@ -83,7 +100,7 @@ static inline void parse_update(void *p, uint16_t length) {
       if (TOO_BIG == addrref)
         too_long++;
       else
-        update_adj_rib_in(address,NULL);
+        update_adj_rib_in(addrref,NULL);
     };
   };
 };
@@ -94,13 +111,14 @@ int msg_parse(void *base, int64_t length) {
   void *ptr, *limit, *msg;
   uint8_t msg_type;
   uint16_t msg_length;
-  int msg_count = 0;
+  uint32_t msg_count=0;
 
   ptr = base;
   limit = base + length;
 
   reinit_bigtable();
   reinit_alloc();
+  consumed=0;
   zero_adj_rib_in(adj_rib_in);
 
   while (ptr < limit && ( msg_max == 0 || msg_count < msg_max)) {
@@ -115,6 +133,7 @@ int msg_parse(void *base, int64_t length) {
   };
 
   assert(msg_count == msg_max || ptr == limit);
+  consumed =  ptr-base;
   return msg_count;
 };
 
@@ -144,7 +163,7 @@ int main(int argc, char **argv) {
   if (2 < argc && 1 == sscanf(argv[2], "%d", &tmp))
     repeat = tmp;
   else
-    repeat = 100;
+    repeat = 5;
 
   if (3 < argc && 1 == sscanf(argv[3], "%d", &tmp))
     msg_max = tmp;
@@ -154,21 +173,25 @@ int main(int argc, char **argv) {
   init_alloc();
   init_bigtable();
   adj_rib_in = alloc_adj_rib_in();
-  // tmp_route = alloc(4096 + sizeof(struct route));
 
   tmp = clock_gettime(CLOCK_REALTIME, &tstart);
-  tmp = msg_parse(buf, length);
-  // dump_bigtable();
-  for (i = 0; i < repeat; i++)
-    message_count = msg_parse(buf, length);
+  message_count = msg_parse(buf, length);
+  if (repeat) {
+    tmp = clock_gettime(CLOCK_REALTIME, &tstart);
+    for (i = 0; i < repeat; i++)
+      message_count = msg_parse(buf, length);
+  } else
+      repeat = 1;
+
   tmp = clock_gettime(CLOCK_REALTIME, &tend);
   duration = timespec_to_ms(timespec_sub(tend, tstart)) / 1000.0;
+  printf("SMALL is %d LARGE is %d\n",SMALL,LARGE);
   printf("read %ld messages\n", message_count);
   printf("complete in %f\n", duration);
   printf("M msgs/sec = %f\n", repeat * message_count / duration / 1000000);
   printf("msgs latency (nsec) = %f\n", duration / repeat / message_count * 1000000000);
-  printf("Gbytes/sec = %f\n", repeat * length / duration / 1000000000);
-  printf("(average message size is %0.2f bytes)\n", (1.0 * length) / message_count);
+  printf("Gbytes/sec = %f\n", repeat * consumed / duration / 1000000000);
+  printf("(average message size is %0.2f bytes)\n", (1.0 * consumed) / message_count);
   printf("FIB table size %d\n", bigtable_index);
   report_route_table();
   printf("ignored overlong prefixes: %d\n", too_long / repeat);
