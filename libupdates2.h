@@ -1,3 +1,6 @@
+#ifndef __LIBUPDATES2_H
+#define __LIBUPDATES2_H
+
 #define _GNU_SOURCE
 
 struct tiebreak {
@@ -61,3 +64,4 @@ struct route {
 #define LARGE_COMMUNITY 32
 #define BGPsec_Path 33
 #define ATTR_SET 128
+#endif

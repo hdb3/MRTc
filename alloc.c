@@ -1,3 +1,6 @@
+#ifndef __ALLOC_C
+#define __ALLOC_C
+
 #include <assert.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -237,3 +240,5 @@ static inline void *alloc(size_t sz) {
 void report_route_table () {
   printf("route table size = %d (%d/%d)\n", small_index + large_index, small_index, large_index);
 };
+
+#endif

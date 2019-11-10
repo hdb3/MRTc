@@ -45,16 +45,17 @@ static inline void update_adj_rib_in(uint32_t address, struct route *route) {
     printf(" route (nil)\n");
 */
   struct route * old_route = adj_rib_in[address];
+  struct route * sroute;
   adj_rib_in[address] = route;
   if (route) {
     route->use_count++;
+    dalloc(serialize_attributes(route));
   };
   if (old_route) {
     old_route->use_count--;
     if (0 == old_route->use_count)
       dalloc(old_route);
   };
-  serialize_attributes(route);
 };
 
 static inline void parse_update(void *p, uint16_t length) {

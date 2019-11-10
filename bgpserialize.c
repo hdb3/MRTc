@@ -10,29 +10,10 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-/*
-#include "aspath.c"
 #include "alloc.c"
 #include "libupdates2.h"
-*/
 #include "hex.c"
-/*
-    ORIGIN:
-    AS_PATH:
-    NEXT_HOP:
-    MULTI_EXIT_DISC:
-    LOCAL_PREF:
-    COMMUNITY:
-    EXTENDED_COMMUNITIES:
-    LARGE_COMMUNITY:
-    ATOMIC_AGGREGATE:
-    AGGREGATOR:
-    MP_REACH_NLRI:
-    MP_UNREACH_NLRI:
-    AS_PATHLIMIT:
-    CONNECTOR:
-    ATTR_SET:
-*/
+
 #define MARGIN 24
 // allowing for at least an extra AS in the path and a locpref attribute
 // as well as the 12 bytes header in the route.
@@ -55,8 +36,6 @@ static inline struct route * serialize_attributes(struct route *route) {
   void *attr_ptr;
 
   void set (uint16_t attr_length, uint8_t flags, uint8_t type_code, void *attr_ptr) {
-    assert(q_limit > q_base + attr_length + 4); // we could and should allow for a realloc at a higher size
-                                                // and before that simply check if we were given more space than we actually asked for!
     if (attr_length<256) {
       *(uint8_t *)q++ = flags & ~0x10;
       *(uint8_t *)q++ = type_code;
@@ -72,8 +51,6 @@ static inline struct route * serialize_attributes(struct route *route) {
   };
 
   void set4 (uint8_t flags, uint8_t type_code, uint32_t v) {
-    assert(q_limit > q_base + 7);
-
     *(uint8_t *)q++ = flags & ~0x10;
     *(uint8_t *)q++ = type_code;
     *(uint8_t *)q++ = 4;
@@ -82,9 +59,6 @@ static inline struct route * serialize_attributes(struct route *route) {
   };
 
   void copy () {
-    // printf("copy() q_limit (%p) > q (%p) + attr_length + 4 (%d)\n",q_limit , q , attr_length + 4); fflush(stdout);
-    assert(q_limit > q + attr_length + 4);
-
     if (attr_ptr) {
       if (attr_length<256) {
         *(uint8_t *)q++ = flags & ~0x10;
@@ -103,16 +77,12 @@ static inline struct route * serialize_attributes(struct route *route) {
 
   void get (uint8_t wanted_type_code) {
     while (r<r_limit-2) { // limit -2 because we need at least a following flags and length field too
-      void * tmp = r;
-      // printf("r %p  r_limit %p\n", r,r_limit);
       if (r<r_limit-2){
         flags = *(uint8_t *)r++;
         type_code = *(uint8_t *)r++;
         attr_length = *(uint8_t *)r++;
           if (0x10 & flags)
             attr_length = attr_length << 8 | (*(uint8_t *)r++);
-        // printf("wtc %d  tc %d  fl %2x  al %d\n",wanted_type_code, type_code, flags, attr_length);
-        // printf("next attribute : "); printHex(stdout,tmp,attr_length+4);
         r += attr_length;
         if ( type_code < wanted_type_code)
 	  continue;
@@ -128,24 +98,15 @@ static inline struct route * serialize_attributes(struct route *route) {
     };  // on exit the attr_length and attr_ptr are correctly set for this attribute.
   };
 
-  // printf("complete attribute list: "); printHex(stdout,r_base,route->update_length);
-  // printf("r %p  r_base %p\n", r,r_base);
   get(ORIGIN);
-  printf("after get(ORIGIN)\n");
-  // printf("tc %d  fl %2x  al %d  ap %p  q %p  r %p\n",type_code, flags, attr_length, attr_ptr, q, r);
   set(1,0x40,ORIGIN,attr_ptr);
   get(AS_PATH);
-  printf("after get(ASPATH)\n");
   copy();
   get(NEXT_HOP);
-  printf("after get(NEXT_HOP)\n");
   copy();
   set4(0x40,LOCAL_PREF,100);
-  printf("after set(LOCAL_PREF)\n");
 
   export->update_length = (uint16_t) (q - q_base); 
-  printHex(stdout,r_base,route->update_length);
-  printHex(stdout,q_base,q - q_base);
   return export;
 filtered:
   dalloc(export);
