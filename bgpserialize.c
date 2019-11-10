@@ -1,0 +1,153 @@
+#include <arpa/inet.h>
+#include <assert.h>
+#include <fcntl.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+/*
+#include "aspath.c"
+#include "alloc.c"
+#include "libupdates2.h"
+*/
+#include "hex.c"
+/*
+    ORIGIN:
+    AS_PATH:
+    NEXT_HOP:
+    MULTI_EXIT_DISC:
+    LOCAL_PREF:
+    COMMUNITY:
+    EXTENDED_COMMUNITIES:
+    LARGE_COMMUNITY:
+    ATOMIC_AGGREGATE:
+    AGGREGATOR:
+    MP_REACH_NLRI:
+    MP_UNREACH_NLRI:
+    AS_PATHLIMIT:
+    CONNECTOR:
+    ATTR_SET:
+*/
+#define MARGIN 24
+// allowing for at least an extra AS in the path and a locpref attribute
+// as well as the 12 bytes header in the route.
+//
+static inline struct route * serialize_attributes(struct route *route) {
+
+  uint16_t q_max = route->update_length + MARGIN;
+  struct route *export = alloc(q_max);
+  void * r_base = (void*)route + sizeof(struct route);
+  void * r_limit = r_base + route->update_length;
+
+  void * q_base = (void*) &(export->tiebreak);
+  void * q_limit = q_base + q_max;
+
+  void * q = q_base;
+  void * r = r_base;
+
+  uint8_t flags, type_code;
+  uint16_t attr_length;
+  void *attr_ptr;
+
+  void set (uint16_t attr_length, uint8_t flags, uint8_t type_code, void *attr_ptr) {
+    assert(q_limit > q_base + attr_length + 4); // we could and should allow for a realloc at a higher size
+                                                // and before that simply check if we were given more space than we actually asked for!
+    if (attr_length<256) {
+      *(uint8_t *)q++ = flags & ~0x10;
+      *(uint8_t *)q++ = type_code;
+      *(uint8_t *)q++ = attr_length & 0xff;
+    } else {
+      *(uint8_t *)q++ = flags | 0x10;
+      *(uint8_t *)q++ = type_code;
+      *(uint8_t *)q++ = attr_length >> 8;
+      *(uint8_t *)q++ = attr_length & 0xff;
+    };  
+    memcpy(q,attr_ptr,attr_length);
+    q += attr_length;
+  };
+
+  void set4 (uint8_t flags, uint8_t type_code, uint32_t v) {
+    assert(q_limit > q_base + 7);
+
+    *(uint8_t *)q++ = flags & ~0x10;
+    *(uint8_t *)q++ = type_code;
+    *(uint8_t *)q++ = 4;
+    *(uint32_t*)q = __bswap_32(v);
+    q += 4;
+  };
+
+  void copy () {
+    // printf("copy() q_limit (%p) > q (%p) + attr_length + 4 (%d)\n",q_limit , q , attr_length + 4); fflush(stdout);
+    assert(q_limit > q + attr_length + 4);
+
+    if (attr_ptr) {
+      if (attr_length<256) {
+        *(uint8_t *)q++ = flags & ~0x10;
+        *(uint8_t *)q++ = type_code;
+        *(uint8_t *)q++ = attr_length & 0xff;
+      } else {
+        *(uint8_t *)q++ = flags | 0x10;
+        *(uint8_t *)q++ = type_code;
+        *(uint8_t *)q++ = attr_length >> 8;
+        *(uint8_t *)q++ = attr_length & 0xff;
+      };  
+      memcpy(q,attr_ptr,attr_length);
+      q += attr_length;
+    };
+  };
+
+  void get (uint8_t wanted_type_code) {
+    while (r<r_limit-2) { // limit -2 because we need at least a following flags and length field too
+      void * tmp = r;
+      // printf("r %p  r_limit %p\n", r,r_limit);
+      if (r<r_limit-2){
+        flags = *(uint8_t *)r++;
+        type_code = *(uint8_t *)r++;
+        attr_length = *(uint8_t *)r++;
+          if (0x10 & flags)
+            attr_length = attr_length << 8 | (*(uint8_t *)r++);
+        // printf("wtc %d  tc %d  fl %2x  al %d\n",wanted_type_code, type_code, flags, attr_length);
+        // printf("next attribute : "); printHex(stdout,tmp,attr_length+4);
+        r += attr_length;
+        if ( type_code < wanted_type_code)
+	  continue;
+        else if ( type_code > wanted_type_code) {
+          attr_ptr = NULL; // the attribute was not found in the source route
+	  break;
+	} else { // the attribute was found in the source route
+          attr_ptr = r;
+	  break;
+	};
+
+      } else attr_ptr = NULL;  // the attribute was not found in the source route (and we reached the end of the route!)
+    };  // on exit the attr_length and attr_ptr are correctly set for this attribute.
+  };
+
+  // printf("complete attribute list: "); printHex(stdout,r_base,route->update_length);
+  // printf("r %p  r_base %p\n", r,r_base);
+  get(ORIGIN);
+  printf("after get(ORIGIN)\n");
+  // printf("tc %d  fl %2x  al %d  ap %p  q %p  r %p\n",type_code, flags, attr_length, attr_ptr, q, r);
+  set(1,0x40,ORIGIN,attr_ptr);
+  get(AS_PATH);
+  printf("after get(ASPATH)\n");
+  copy();
+  get(NEXT_HOP);
+  printf("after get(NEXT_HOP)\n");
+  copy();
+  set4(0x40,LOCAL_PREF,100);
+  printf("after set(LOCAL_PREF)\n");
+
+  export->update_length = (uint16_t) (q - q_base); 
+  printHex(stdout,r_base,route->update_length);
+  printHex(stdout,q_base,q - q_base);
+  return export;
+filtered:
+  dalloc(export);
+  return NULL;
+};

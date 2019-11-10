@@ -15,6 +15,7 @@
 
 #include "alloc.c"
 #include "bgpupdate.c"
+#include "bgpserialize.c"
 #include "bigtable.c"
 #include "getw.h"
 #include "nlri2.h"
@@ -53,6 +54,7 @@ static inline void update_adj_rib_in(uint32_t address, struct route *route) {
     if (0 == old_route->use_count)
       dalloc(old_route);
   };
+  serialize_attributes(route);
 };
 
 static inline void parse_update(void *p, uint16_t length) {
@@ -72,7 +74,7 @@ static inline void parse_update(void *p, uint16_t length) {
     route = alloc(length + sizeof(struct route));
     memset(route, 0, sizeof(struct route));
     // printf("msg count=%-8ld  rte count=%-8ld  length=%4d\r",msg_count,unique,length);
-    memcpy((void*)route + sizeof(struct route), p, length);
+    memcpy((void*)route + sizeof(struct route), path_attributes, pathattributes_length);
     route->update_length = length;
     route->unique = unique++;
     parse_attributes(path_attributes, pathattributes_length, route);

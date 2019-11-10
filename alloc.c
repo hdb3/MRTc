@@ -62,7 +62,7 @@ static inline int _checkptr(void* p, void* low, void* high, size_t size, int nul
   fflush(stdout);
   assert(0);
 };
-
+#ifdef DEBUG
 #define CHECKL(ptr) (_checkptr(ptr,large_buf,large_buf + (LARGE-1) * LARGE_MAX,LARGE,0,0))
 #define CHECKLN(ptr) (_checkptr(ptr,large_buf,large_buf + (LARGE-1) * LARGE_MAX,LARGE,1,0))
 #define CHECKLC(ptr) (_checkptr(ptr,large_buf,large_buf + (LARGE-1) * LARGE_MAX,LARGE,1,1))
@@ -70,6 +70,15 @@ static inline int _checkptr(void* p, void* low, void* high, size_t size, int nul
 #define CHECKSN(ptr) (_checkptr(ptr,small_buf,small_buf + (SMALL-1) * SMALL_MAX,SMALL,1,0))
 #define CHECKSC(ptr) (_checkptr(ptr,small_buf,small_buf + (SMALL-1) * SMALL_MAX,SMALL,1,1))
 #define CHECK(ptr) if (ISLARGE(ptr)) CHECKL(ptr); else CHECKS(ptr)
+#else
+#define CHECKL(ptr) ;
+#define CHECKLN(ptr) ;
+#define CHECKLC(ptr) 0
+#define CHECKS(ptr) ;
+#define CHECKSN(ptr) ;
+#define CHECKSC(ptr) 0
+#define CHECK(ptr) ;
+#endif
 
 void * both_buf;
 
