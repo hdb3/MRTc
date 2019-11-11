@@ -14,32 +14,15 @@ struct tiebreak {
   uint32_t peer_address;
 };
 
+int tiebreaker (struct tiebreak *a, struct tiebreak *b){
+ return (0 != memcmp (a,b,sizeof(struct tiebreak)));
+};
+
 struct route {
   uint64_t unique;
   uint16_t use_count;
   uint16_t update_length;
   struct tiebreak tiebreak;
-  /*
-  struct offsets offsets {
-    uint8_t origin;
-    uint8_t as_path;
-    uint8_t next_hop;
-    uint8_t med;
-    uint8_t loc_pref;
-    uint8_t at_agg;
-    uint8_t agg;
-    uint8_t community;
-    uint8_t originator_id;
-    uint8_t cluster_list;
-    uint8_t mp_reach;
-    uint8_t mp_unreach;
-    uint8_t extended_community;
-    uint8_t as4_path;
-    uint8_t as4_agg;
-    uint8_t large_community;
-    uint8_t bgpsec_path;
-  };
-*/
 };
 
 // BGP protocol constants

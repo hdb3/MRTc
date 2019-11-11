@@ -17,6 +17,8 @@
 #include "bgpupdate.c"
 #include "bgpserialize.c"
 #include "bigtable.c"
+#include "locrib.c"
+#include "phase1.c"
 #include "getw.h"
 #include "nlri2.h"
 #include "timespec.h"
@@ -45,11 +47,10 @@ static inline void update_adj_rib_in(uint32_t address, struct route *route) {
     printf(" route (nil)\n");
 */
   struct route * old_route = adj_rib_in[address];
-  struct route * sroute;
   adj_rib_in[address] = route;
   if (route) {
     route->use_count++;
-    dalloc(serialize_attributes(route));
+    locrib(route);
   };
   if (old_route) {
     old_route->use_count--;
@@ -61,6 +62,7 @@ static inline void update_adj_rib_in(uint32_t address, struct route *route) {
 static inline void parse_update(void *p, uint16_t length) {
 
   struct route *route = NULL;
+  struct route * sroute;
   uint64_t msg_count = 0;
 
   uint16_t withdraw_length = getw16(p);
@@ -75,10 +77,12 @@ static inline void parse_update(void *p, uint16_t length) {
     route = alloc(length + sizeof(struct route));
     memset(route, 0, sizeof(struct route));
     // printf("msg count=%-8ld  rte count=%-8ld  length=%4d\r",msg_count,unique,length);
+    route->update_length = pathattributes_length;
     memcpy((void*)route + sizeof(struct route), path_attributes, pathattributes_length);
-    route->update_length = length;
     route->unique = unique++;
+    phase1(&route);
     parse_attributes(path_attributes, pathattributes_length, route);
+    // dalloc(serialize_attributes(route));
   };
 
   if (nlri_length) {
@@ -121,6 +125,7 @@ int msg_parse(void *base, int64_t length) {
 
   reinit_bigtable();
   reinit_alloc();
+  locrib_init();
   consumed=0;
   zero_adj_rib_in(adj_rib_in);
 

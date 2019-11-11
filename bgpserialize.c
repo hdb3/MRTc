@@ -104,7 +104,7 @@ static inline struct route * serialize_attributes(struct route *route) {
   copy();
   get(NEXT_HOP);
   copy();
-  set4(0x40,LOCAL_PREF,100);
+  set4(0x40,LOCAL_PREF,route->tiebreak.local_pref);
 
   export->update_length = (uint16_t) (q - q_base); 
   return export;
