@@ -50,7 +50,7 @@ static inline void update_adj_rib_in(uint32_t address, struct route *route) {
   adj_rib_in[address] = route;
   if (route) {
     route->use_count++;
-    locrib(route);
+    locrib(address,route);
   };
   if (old_route) {
     old_route->use_count--;

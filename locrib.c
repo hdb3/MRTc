@@ -1,5 +1,6 @@
 #include "libupdates2.h"
 #include "bigtable.c"
+#include "locribjournal.c"
 
 #define TOP64 0x8000000000000000
 
@@ -7,11 +8,13 @@ struct route **LOCRIB=NULL;
 
 void locrib_init() {
   LOCRIB = calloc(BIG, sizeof(void*));
+  locribj_init();
 };
 
-void locrib_push(uint32_t address){
+//void locribj_push(uint32_t address){
   // add a journal entry for this address
-};
+//};
+
 /* push logic
  * if the tiebreak changes the winner then:
  *   if the pushed bit is set dont push again
@@ -34,6 +37,6 @@ void locrib(uint32_t address, struct route *new) {
   if (tiebreaker(&new->tiebreak,&current->tiebreak)) {
     LOCRIB[address] = (struct route *) SET64(new);
     if (ISNOTSET64(current))
-      locrib_push(address);
+      locribj_push(address);
   };
 };

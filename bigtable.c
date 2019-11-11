@@ -1,3 +1,5 @@
+#ifndef __BIGTABLE_C
+#define __BIGTABLE_C
 #include <arpa/inet.h>
 #include <assert.h>
 #include <stddef.h>
@@ -112,3 +114,4 @@ static inline uint32_t lookup_RIB64(uint64_t la) {
     return TOO_BIG;
   };
 };
+#endif
