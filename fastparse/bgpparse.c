@@ -17,7 +17,7 @@
 
 #include "alloc.c"
 #include "bgpupdate.c"
-#include "bgpserialize.c"
+//#include "bgpserialize.c"
 #include "bigtable.c"
 #include "locrib.c"
 #include "phase1.c"
