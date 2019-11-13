@@ -1,14 +1,4 @@
-// #include <arpa/inet.h>
-// #include <assert.h>
-// #include <fcntl.h>
-// #include <stdint.h>
-// #include <stdio.h>
-// #include <stdlib.h>
-// #include <string.h>
-// #include <sys/mman.h>
-// #include <sys/stat.h>
-// #include <sys/types.h>
-// #include <unistd.h>
+#ifdef __HEADER__
 
 #include "include.h"
 
@@ -20,7 +10,7 @@
 // allowing for at least an extra AS in the path and a locpref attribute
 // as well as the 12 bytes header in the route.
 //
-static inline struct route * serialize_attributes(struct route *route) {
+static inline struct route * serialize_attributes___HEADER__(struct route *route) {
 
   uint16_t q_max = route->update_length + MARGIN;
   struct route *export = alloc(q_max);
@@ -99,18 +89,12 @@ static inline struct route * serialize_attributes(struct route *route) {
       } else attr_ptr = NULL;  // the attribute was not found in the source route (and we reached the end of the route!)
     };  // on exit the attr_length and attr_ptr are correctly set for this attribute.
   };
-
-  get(ORIGIN);
-  set(1,0x40,ORIGIN,attr_ptr);
-  get(AS_PATH);
-  copy();
-  get(NEXT_HOP);
-  copy();
-  set4(0x40,LOCAL_PREF,route->tiebreak.local_pref);
-
+#endif
+#ifdef __TRAILER__
   export->update_length = (uint16_t) (q - q_base); 
   return export;
 filtered:
   dalloc(export);
   return NULL;
 };
+#endif

@@ -39,26 +39,27 @@ static inline void zero_adj_rib_in(void*p) {
   memset(p,0,BIG*sizeof(void*));
 };
 
-static inline void update_adj_rib_in(uint32_t address, struct route *route) {
+static inline void update_adj_rib_in(uint32_t addrref, struct route *route) {
 
 /*
-  print_prefix64(lookup_bigtable(address));
+  print_prefix64(lookup_bigtable(addrref));
   if (route)
     printf(" route %ld\n",route->unique);
   else
     printf(" route (nil)\n");
 */
-  struct route * old_route = adj_rib_in[address];
-  adj_rib_in[address] = route;
+  uint32_t addrindex = addrref &= _LR_INDEX_MASK;  // mask off the overloaded top bits in addrref
+  struct route * old_route = adj_rib_in[addrindex];
+  adj_rib_in[addrindex] = route;
   if (route) {
     route->use_count++;
-    locrib(address,route);
   };
   if (old_route) {
     old_route->use_count--;
     if (0 == old_route->use_count)
       dalloc(old_route);
   };
+  locrib(addrref,route);
 };
 
 static inline void parse_update(void *p, uint16_t length) {
@@ -95,9 +96,13 @@ static inline void parse_update(void *p, uint16_t length) {
       uint32_t addrref = lookup_RIB64(prefix);
       if (TOO_BIG == addrref)
         too_long++;
-      else
+      else {
+        if (nlrip == nlri + nlri_length)  // this is the last prefix in the list
+          addrref |= _LR_EOB;
         update_adj_rib_in(addrref,route);
+      };
     };
+    assert (nlrip == nlri + nlri_length);  // sanity check - will remove when code is tested
   };
 
   if (withdraw_length) {
@@ -108,9 +113,13 @@ static inline void parse_update(void *p, uint16_t length) {
       uint32_t addrref = lookup_RIB64(address);
       if (TOO_BIG == addrref)
         too_long++;
-      else
+      else {
+        if (withdrawp == withdrawn + withdraw_length)  // this is the last prefix in the list
+          addrref |= _LR_EOB;
         update_adj_rib_in(addrref,NULL);
+      };
     };
+    assert (withdrawp == withdrawn + withdraw_length);  // sanity check - will remove when code is tested
   };
 };
 
