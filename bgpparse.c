@@ -1,5 +1,5 @@
+/*
 #define _GNU_SOURCE
-
 #include <arpa/inet.h>
 #include <assert.h>
 #include <fcntl.h>
@@ -12,6 +12,8 @@
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
+*/
+#include "include.h"
 
 #include "alloc.c"
 #include "bgpupdate.c"
