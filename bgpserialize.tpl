@@ -5,12 +5,14 @@
 #include "alloc.c"
 #include "libupdates2.h"
 #include "hex.c"
+#endif
 
+#ifdef __BODY__
 #define MARGIN 24
 // allowing for at least an extra AS in the path and a locpref attribute
 // as well as the 12 bytes header in the route.
 //
-static inline struct route * serialize_attributes___HEADER__(struct route *route) {
+static inline struct route * serialize_attributes___BODY__(struct route *route) {
 
   uint16_t q_max = route->update_length + MARGIN;
   struct route *export = alloc(q_max);

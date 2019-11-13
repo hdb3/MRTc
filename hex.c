@@ -1,4 +1,4 @@
-char *toHex(char *buf, int l) {
+static char *toHex(char *buf, int l) {
 
   char hex_str[] = "0123456789abcdef";
   int i;
@@ -20,7 +20,7 @@ char *toHex(char *buf, int l) {
   return (result);
 }
 
-void printHex(FILE *fd, char *buf, int l) {
+static void printHex(FILE *fd, char *buf, int l) {
   char *hex = toHex(buf, l);
   fprintf(fd, "[%s]\n", hex);
   free(hex);

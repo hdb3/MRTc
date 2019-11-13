@@ -1,8 +1,8 @@
 #include "libupdates2.h"
 #include "bigtable.c"
 #include "locribjournal.c"
-
 void schedule_phase3();
+
 /*
  * this is the unoptimised version of locrib hich demonstrates performance for the
  * simple replacement cases
@@ -70,3 +70,4 @@ void locrib(uint32_t address, struct route *new) {
                         //  and start work on other update messages
 
 };
+#include "phase3.c"

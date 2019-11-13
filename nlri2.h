@@ -66,9 +66,10 @@ static inline int nlri_list(void *nlris, uint32_t *pfxs, int limit) {
   return pfxc;
 };
 
-static inline void build_nlri(voidi**nlri, uint64_t *prefix){
-  uint8_t *p  = (uint8_t *) (*nlri);
-  uint32_t address = __bswap_32((uint32_t) (0xffffffff & prefix));
+static inline void build_nlri(uint8_t **nlri, uint64_t prefix){
+  uint8_t *p  = *nlri;
+
+  uint32_t address = __bswap_32((uint32_t) (0xffffffff & (uint32_t)prefix));
   uint8_t length = (uint8_t) (0xff & (prefix >> 32));
   uint8_t chunk;
   *(p++) = length;
@@ -76,6 +77,7 @@ static inline void build_nlri(voidi**nlri, uint64_t *prefix){
     *(p++) = (uint8_t) (0xff & address);
     address >> 8;
   };
+  *nlri = p;
 };
 
 #endif

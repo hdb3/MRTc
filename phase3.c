@@ -1,6 +1,8 @@
+#ifndef __PHASE3_C
+#define __PHASE3_C
 #include "include.h"
 
-#include "locrib.c"
+//#include "locrib.c"
 #include "locribjournal.c"
 #include "peergroup.c"
 
@@ -12,7 +14,7 @@ static inline struct route * read_and_clear(uint32_t addrref) {
     return (struct route *) routeptr;
 };
 
-void phase3(struct peergroup *peergroup, struct route *route, uint32_t *addrreftable, uint32_t table_index);
+// void phase3(struct peergroup *peergroup, struct route *route, uint32_t *addrreftable, uint32_t table_index);
 void schedule_phase3() {
   uint32_t addrref;
   uint32_t addrreftable [ 4096 ];
@@ -46,5 +48,4 @@ void schedule_phase3() {
     phase3(&peergroups[pix],route,addrreftable,table_index);   
   };
 };
-
-void phase3(struct peergroup *peergroup, struct route *route, uint32_t *addrreftable, uint32_t table_index);
+#endif
