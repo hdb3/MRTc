@@ -4,7 +4,7 @@
 #include "locribjournal.c"
 #include "peergroup.c"
 
-static struct route * inline read_and_clear(uint32_t addrref) {
+static inline struct route * read_and_clear(uint32_t addrref) {
     // read and clear the push flag
     // if the route changes whilst we are working then a new action will be scheduled
     uint_fast64_t* p = (uint_fast64_t*) &LOCRIB[addrref];
@@ -24,7 +24,7 @@ void schedule_phase3() {
     table_index = 0;
     addrreftable[table_index++] = _LR_INDEX_MASK & addrref;
     route = read_and_clear(_LR_INDEX_MASK & addrref);
-    while (!(_LR_EOB & addrref) {
+    while (!(_LR_EOB & addrref)) {
       addrref = locribj_pull();
       addrreftable[table_index++] = _LR_INDEX_MASK & addrref;
       route2 = read_and_clear(_LR_INDEX_MASK & addrref);
@@ -32,7 +32,7 @@ void schedule_phase3() {
                               // allowed but unlikely in unstressed or single thread testing
                               // to be fixed up later.....
     };
-    assert((JOURNAL_EMPTY != addrref); // this is a hard assertion
+    assert((JOURNAL_EMPTY != addrref)); // this is a hard assertion
                                        // because the journal should always contain blocks terminated with a marker,
                                        // so hitting the end of the journal on a non terminal addrref
                                        // is either a bug or proof that we need a spinlock (we do really)
@@ -41,8 +41,8 @@ void schedule_phase3() {
   // now we have a contiguous block and a single route
   // we need to call per peergroup ARO functions.
  
-  unit16_t pix;
-  for (pix=0;pix<npeers;pix++)
+  uint16_t pix;
+  for (pix=0;pix<npeergroups;pix++)
     phase3(&peergroups[pix],route,addrreftable,table_index);   
   };
 };
