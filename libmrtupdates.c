@@ -14,6 +14,7 @@
 #include "libmrt.h"
 #include "nlri.h"
 
+#define MAXREAD 20000000000
 static FILE *cdffile;
 
 struct chunk get_blocks_bgp4mp_peer(struct mrt_peer_record *peer) {
@@ -398,7 +399,8 @@ struct mrt *mrt_updates_parse(struct chunk buf) {
 
   mrt = calloc(1, sizeof(*mrt));
   mrt->type = TYPE_BGP4MP;
-  while (bytes_left >= MIN_MRT_LENGTH) {
+  while (MAXREAD > (ptr - buf.data) && bytes_left >= MIN_MRT_LENGTH) {
+    // while (bytes_left >= MIN_MRT_LENGTH) {
     msg_timestamp = getw32(ptr + 0);
     msg_type = getw16(ptr + 4);
     msg_subtype = getw16(ptr + 6);

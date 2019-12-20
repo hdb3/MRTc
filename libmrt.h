@@ -5,7 +5,9 @@
 #ifndef BUILD_UPDATE_LIST
 #define BUILD_UPDATE_LIST 0
 #endif
+#ifndef CDFFILE
 #define CDFFILE 1
+#endif
 #define MAX(x, y) ((y) < (x) ? (x) : (y))
 #define MIN_MRT_LENGTH 12
 #define MIN_MRT_LENGTH_ET 16

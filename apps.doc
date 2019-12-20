@@ -1,0 +1,17 @@
+
+ribtest.c - is a simple consumer of _update_ binray streams - arg 1 is a file name.
+
+main.c - is a similar simple parse and write app, however it is aparrently broken, at least with the first large test file i have tried (updates.2019.07).
+
+mrtupdatetest.c - is another consumer of update streams (bgp4mp MRT records). arg 1&2 are input and output file names.
+	unlike main.c this works with the large test files at hand
+	i speculate that main.c suffers from not handling extended timestamps
+
+mrttest2.c - IIRC this consumes table dumps and update streams and correlates them, amongst other things.
+
+mrttabledumptest.c - reads MRT table dump recirds only.  arg 1 is the input file - typically 'bview....', arg 2 is the index in the peer table to use as the source for
+	building a stream of update messages.  Running with just one parameter generates a report which amonst other things identifies the peer with the largets table,
+	which can then be used as the input for a second run.  The output file name is fixed as 'table.bin'.
+
+alloctest.c - UNIT TEST
+bigtabletest.c - UNIT TEST
